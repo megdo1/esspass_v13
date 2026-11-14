@@ -1,0 +1,9 @@
+# Dépendances d'exécution ES-PASS (Windows uniquement : Outlook COM)
+PyQt5
+pandas
+numpy
+openpyxl
+matplotlib
+python-dateutil
+pywin32
+# Build : pip install pyinstaller

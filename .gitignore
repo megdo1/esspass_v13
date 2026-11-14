@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build
+build/
+dist/
+*.spec
+
+# Données et configuration locales : ne JAMAIS versionner
+*.db
+*.db-journal
+sauvegardes/
+config/config.json
+*.log
+
+# Fichiers générés par l'application (rapports exportés, etc.)
+rapport_PASS_*.pdf
+rapport_PASS_*.xlsx
+
+# Données du client (captures d'écran des anomalies remontées)
+annomalie/*.png
+annomalie/*.jpg
+
+# Archives et sauvegardes de travail (anciennes versions, code supprimé)
+_archive/
+*_BACKUP_*/
+
+# Outils / IDE
+.claude/
+.vscode/
+.idea/
