@@ -32,3 +32,6 @@ _archive/
 .claude/
 .vscode/
 .idea/
+
+# Mémoire locale du projet pour Claude Code : ne jamais versionner ni pousser
+CLAUDE.md
