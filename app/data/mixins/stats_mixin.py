@@ -121,8 +121,13 @@ class StatsMixin:
 
     def get_mes_demandes(self, id_utilisateur: int = None) -> int:
         """Compte les demandes affectées à un utilisateur"""
+        # Accepte un identifiant, un dict utilisateur (clé 'id') ou None (= utilisateur connecté)
         if id_utilisateur is None:
             id_utilisateur = self.get_current_user()
+        if isinstance(id_utilisateur, dict):
+            id_utilisateur = id_utilisateur.get('id')
+        if id_utilisateur is None or id_utilisateur == '-1':
+            return 0
 
         query = """
             SELECT COUNT(*)
@@ -131,7 +136,7 @@ class StatsMixin:
             WHERE e.libelle_etat IN ('À étudier','En cours de traitement')
 			AND d.id_responsable = ?
         """
-        results = self._execute_query(query, (id_utilisateur['id'],))
+        results = self._execute_query(query, (id_utilisateur,))
 
         if results and len(results) > 0:
             return results[0][0]

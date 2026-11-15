@@ -1,5 +1,9 @@
 """Configuration des colonnes et paramètres applicatifs (par utilisateur)."""
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 
 
@@ -159,26 +163,25 @@ class ConfigMixin:
             return True
 
         except Exception as e:
-            print(f"❌ Erreur lors de la mise à jour de la config: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"❌ Erreur lors de la mise à jour de la config: {e}")
+            logger.exception("Erreur non gérée")
             return False
 
     def reset_colonnes_default(self):
         """Réinitialise toutes les colonnes aux valeurs par défaut"""
         try:
             # Réactiver toutes les colonnes
-            self.execute_update("""
+            if not self.execute_update("""
                 UPDATE colonnes_config
                 SET visible = 1
-            """)
+            """):
+                return False
 
-            print("✅ Colonnes réinitialisées aux valeurs par défaut")
+            logger.info("Colonnes réinitialisées aux valeurs par défaut")
             return True
 
-        except Exception as e:
-            self.conn.rollback()
-            print(f"❌ Erreur lors de la réinitialisation: {e}")
+        except Exception:
+            logger.exception("Erreur lors de la réinitialisation des colonnes")
             return False
 
     def get_parametre(self, cle, default=None):
@@ -214,7 +217,7 @@ class ConfigMixin:
 
             return default
         except Exception as e:
-            print(f"⚠️ Erreur lecture paramètre {cle}: {e}")
+            logger.error(f"⚠️ Erreur lecture paramètre {cle}: {e}")
             return default
 
     def get_all_parametres(self):
@@ -246,7 +249,7 @@ class ConfigMixin:
                     parametres[cle] = valeur
 
         except Exception as e:
-            print(f"⚠️ Erreur lecture paramètres: {e}")
+            logger.error(f"⚠️ Erreur lecture paramètres: {e}")
 
         return parametres
 
@@ -262,20 +265,21 @@ class ConfigMixin:
             bool: True si succès
         """
 
+        # Paramètre GLOBAL (sans id_utilisateur) : réservé aux administrateurs
+        if self._refuser_si_pas_droit('gerer_listes', "modifier un paramètre global"):
+            return False
+
         try:
             valeur_str = str(valeur)
 
-            self.execute_update("""
+            return self.execute_update("""
                 INSERT INTO parametres_app (cle, valeur)
                 VALUES (?, ?)
                 ON CONFLICT(cle) DO UPDATE SET valeur = excluded.valeur
             """, (cle, valeur_str))
 
-            return True
-
-        except Exception as e:
-            print(f"⚠️ Erreur écriture paramètre {cle}: {e}")
-            self.conn.rollback()
+        except Exception:
+            logger.exception("Erreur écriture paramètre %s", cle)
             return False
 
     def update_parametres_bulk(self, parametres_dict):
@@ -322,11 +326,10 @@ class ConfigMixin:
                 # COMMIT
                 conn.commit()
 
-            print(f"✅ {len(parametres_dict)} paramètres mis à jour")
+            logger.info(f"✅ {len(parametres_dict)} paramètres mis à jour")
             return True
 
         except Exception as e:
-            print(f"⚠️ Erreur mise à jour paramètres: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"⚠️ Erreur mise à jour paramètres: {e}")
+            logger.exception("Erreur non gérée")
             return False

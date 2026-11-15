@@ -354,5 +354,6 @@ def calcul_indicateurs_trimestriels(df: pd.DataFrame, annee: int, trimestre_max:
     trimestres_affiches = [datetime.now().strftime("%d/%m/%Y") if t == "Aujourd'hui" else t for t in trimestres]
     df_result.columns = ["Indicateur"] + trimestres_affiches
 
-    progress_callback(100)
+    if progress_callback:
+        progress_callback(100)
     return df_result

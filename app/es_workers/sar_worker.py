@@ -1,4 +1,8 @@
 from PyQt5.QtCore import QObject, pyqtSignal
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 
 class SarCalcWorker(QObject):
@@ -16,9 +20,7 @@ class SarCalcWorker(QObject):
         try:
             result = calcul_sar_indicateurs(self.df, self.annee, self.trimestre, progress_callback=self.progress.emit)
         except Exception as e:
-            import traceback
-            print("SAR Worker exception:", e)
-            print(traceback.format_exc())
+            logger.exception("SAR Worker exception : %s", e)
             result = None
         self.finished.emit(result)
 

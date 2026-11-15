@@ -9,6 +9,10 @@ from app.dialogs.ui_graphdialog import GraphDialog
 from app.ressources import MODEL_PRECO_PATH
 from app.views.common_view_mixins import CommonViewMixin, SharedIPMixin, SharedIPSMixin, SharedIPVMixin, SharedPSMixin, SharedPSVMixin, SharedPVMixin
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class PreconisationsView(CommonViewMixin, SharedIPVMixin, SharedPSVMixin, SharedIPSMixin, SharedPVMixin, SharedPSMixin, SharedIPMixin, QWidget):
     """
     REQUIRED_COLS_PRECONISATIONS = [
@@ -199,7 +203,7 @@ class PreconisationsView(CommonViewMixin, SharedIPVMixin, SharedPSVMixin, Shared
                         if index != -1:
                             self.combo_annee.setCurrentIndex(index)
                     except Exception as e:
-                        print(f"Erreur positionnement année courante : {e}")
+                        logger.error(f"Erreur positionnement année courante : {e}")
 
                     self.update_radio_aujourdhui_state()
 

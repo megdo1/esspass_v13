@@ -143,7 +143,7 @@ class FiltresMixin:
 
     def trierColonne(self, index, ordre):
         """Trie la colonne selon l'ordre spécifié (croissant ou décroissant) - UNIQUEMENT SUR LES LIGNES VISIBLES"""
-        print(f"🔄 Tri de la colonne {index} - Ordre: {'ASC' if ordre == Qt.AscendingOrder else 'DESC'}")
+        logger.info(f"🔄 Tri de la colonne {index} - Ordre: {'ASC' if ordre == Qt.AscendingOrder else 'DESC'}")
         # ✅ AJOUTEZ CES LIGNES : Réinitialiser les tris des autres colonnes
         for col in range(self.table.columnCount()):
             if col != index:
@@ -204,7 +204,7 @@ class FiltresMixin:
 
             lignes_donnees.append(ligne_complete)
 
-        print(f"📊 Nombre de lignes visibles à trier : {len(lignes_donnees)}")
+        logger.info(f"📊 Nombre de lignes visibles à trier : {len(lignes_donnees)}")
 
         # ========== ÉTAPE 2 : TRI INTELLIGENT ==========
         def cle_tri(ligne):
@@ -292,7 +292,7 @@ class FiltresMixin:
         self.majHeaderIndicateurs()
         self.update_selection_count()
 
-        print(f"✅ Tri terminé sur {len(lignes_donnees)} lignes visibles")
+        logger.info(f"✅ Tri terminé sur {len(lignes_donnees)} lignes visibles")
 
     def update_header_checkbox_display(self):
         """Met à jour l'affichage de la checkbox d'en-tête"""
@@ -320,13 +320,13 @@ class FiltresMixin:
 
     def appliquer_filtres(self):
         """Recharge le tableau quand un filtre change"""
-        print(f"🔄 Filtres : Archivées={self.cb_archives.isChecked()}, "
+        logger.info(f"🔄 Filtres : Archivées={self.cb_archives.isChecked()}, "
               f"Annulées={self.cb_annulees.isChecked()}, Traitées={self.cb_realisees.isChecked()}")
         self.load_demandes_table()
 
     def effacerFiltre(self, index):
         """Efface le filtre actif sur une colonne"""
-        print(f"❌ Effacement du filtre sur la colonne {index}")
+        logger.debug(f"❌ Effacement du filtre sur la colonne {index}")
         self.mots_cles[index] = []
         if index in self.etat_coches_col:
             self.etat_coches_col[index] = {}
@@ -335,7 +335,7 @@ class FiltresMixin:
 
     def effacerTri(self, index):
         """Efface le tri actif sur une colonne"""
-        print(f"↺ Effacement du tri sur la colonne {index}")
+        logger.info(f"↺ Effacement du tri sur la colonne {index}")
         self.ordre_tri[index] = None
         self.load_demandes_table()
         self.majHeaderIndicateurs()

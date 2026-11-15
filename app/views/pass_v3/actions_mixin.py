@@ -10,6 +10,10 @@ from app.views.pass_v3.mail_dialog import MailDetailsDialog
 from app.views.pass_v3.traitement_dialogs import TraiterDemandeDialog, TraiterMasseDialog, GererMasseDialog
 from app.views.pass_v3.rapports import RapportsDialog
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class ActionsMixin:
     """Actions sur les demandes : gestion, duplication, traitement, archivage, annulation."""
@@ -66,7 +70,7 @@ class ActionsMixin:
 
         # Recharger le tableau si la demande a été sauvegardée
         if result == QDialog.Accepted:
-            print(f"Demande #{id_demande} modifiée")
+            logger.info(f"Demande #{id_demande} modifiée")
             self.load_demandes_table()
 
     @busy_cursor
@@ -76,7 +80,7 @@ class ActionsMixin:
             id_demande = int(self.table.verticalHeaderItem(row).text())
             dialog = DuplicateDemandeDialog(id_demande, self.data_manager, self)
             if dialog.exec_() == QDialog.Accepted:
-                print(f"✅ Demande #{id_demande} dupliquée")
+                logger.info(f"✅ Demande #{id_demande} dupliquée")
                 # Recharger les données
                 self.collecte_info = self.data_manager.get_last_collecte()
                 self.dashboard_stats = self.data_manager.get_dashboard_stats()
@@ -119,7 +123,7 @@ class ActionsMixin:
             id_demande = int(self.table.verticalHeaderItem(row).text())
             dialog = TraiterDemandeDialog(id_demande, self.data_manager, self)
             if dialog.exec_() == QDialog.Accepted:
-                print(f"✅ Traitement de la demande #{id_demande} sauvegardé")
+                logger.info(f"✅ Traitement de la demande #{id_demande} sauvegardé")
                 self.load_demandes_table()
         except Exception as e:
             show_error(self, "Erreur", f"Impossible d'ouvrir le dialogue de traitement :\n{e}")
@@ -130,7 +134,7 @@ class ActionsMixin:
             dialog = CreateDemandeDialog(self.data_manager, self)
 
             if dialog.exec_() == QDialog.Accepted:
-                print("✅ Nouvelle demande créée")
+                logger.info("✅ Nouvelle demande créée")
                 # Recharger les données
                 self.collecte_info = self.data_manager.get_last_collecte()
                 self.dashboard_stats = self.data_manager.get_dashboard_stats()
@@ -140,7 +144,7 @@ class ActionsMixin:
                 self.load_demandes_table()
 
         except Exception as e:
-            print(f"❌ Erreur ouverture dialogue création : {e}")
+            logger.error(f"❌ Erreur ouverture dialogue création : {e}")
             show_error(self, "Erreur", f"Impossible d'ouvrir le dialogue de création :\n{e}")
 
     @busy_cursor_no_args
@@ -355,7 +359,7 @@ class ActionsMixin:
         clear_all_cursors()
         dialog = TraiterMasseDialog(selected_ids, self.data_manager, self)
         if dialog.exec_() == QDialog.Accepted:
-            print(f"{len(selected_ids)} demandes traitées en masse")
+            logger.info(f"{len(selected_ids)} demandes traitées en masse")
             self.load_demandes_table()
 
     @busy_cursor_no_args
@@ -379,7 +383,7 @@ class ActionsMixin:
         clear_all_cursors()
         dialog = GererMasseDialog(selected_ids, self.data_manager, self)
         if dialog.exec_() == QDialog.Accepted:
-            print(f"{len(selected_ids)} demandes gérées en masse")
+            logger.info(f"{len(selected_ids)} demandes gérées en masse")
             # Recharger les données
             self.collecte_info = self.data_manager.get_last_collecte()
             self.dashboard_stats = self.data_manager.get_dashboard_stats()

@@ -413,23 +413,23 @@ def sync_outlook_to_sqlite(user, outlook_folder, pj_path, date_debut=None,progre
             nb_emails_traites
         )
         
-        print(f"\n✅ Synchronisation terminée avec succès !")
-        print(f" - Emails traités : {nb_emails_traites}")
-        print(f" - Nouvelles demandes : {nb_nouvelles_demandes}")
-        print(f" - Réponses attachées : {nb_reponses_attachees}")
-        print(f" - Pièces jointes extraites : {nb_pieces_jointes}")
+        logger.info(f"\n✅ Synchronisation terminée avec succès !")
+        logger.info(f" - Emails traités : {nb_emails_traites}")
+        logger.info(f" - Nouvelles demandes : {nb_nouvelles_demandes}")
+        logger.info(f" - Réponses attachées : {nb_reponses_attachees}")
+        logger.info(f" - Pièces jointes extraites : {nb_pieces_jointes}")
         return nb_emails_traites,nb_nouvelles_demandes
 
     except OutlookFolderNotFoundError as e:
-        print(f"\n❌ {e}")
+        logger.error(f"\n❌ {e}")
         if id_collecte:
             data_manager.supprimer_collecte(id_collecte)
         raise
     except pjFolderNotFoundError as e:
-        print(f"\n❌ {e}")
+        logger.error(f"\n❌ {e}")
         raise
     except Exception as e:
-        print(f"❌ Erreur critique : {e}")
+        logger.error(f"❌ Erreur critique : {e}")
         return 0
     finally:
         pythoncom.CoUninitialize()
@@ -444,4 +444,4 @@ if __name__ == "__main__":
     date_cible = datetime(2025, 12, 1, 16, 13, 19)
 
     nb_traite = sync_outlook_to_sqlite(user, outlook_folder, pj_path, date_debut=date_cible)
-    print(f"✅ {nb_traite} emails traités à partir de {date_cible}.")
+    logger.info(f"✅ {nb_traite} emails traités à partir de {date_cible}.")

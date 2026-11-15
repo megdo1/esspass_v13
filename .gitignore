@@ -35,3 +35,7 @@ _archive/
 
 # Mémoire locale du projet pour Claude Code : ne jamais versionner ni pousser
 CLAUDE.md
+
+# Binaires générés (jamais versionnés : livrés hors dépôt)
+*.exe
+dist/

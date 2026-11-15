@@ -4,6 +4,10 @@ from PyQt5.QtWidgets import QMessageBox
 from app.utils.decorators import busy_cursor_no_args
 from app.utils.ui_helpers import show_info, show_warning, show_error, clear_all_cursors
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class ExportMixin:
     """Export Excel de la liste des demandes."""
@@ -115,11 +119,7 @@ class ExportMixin:
                     cell.alignment = Alignment(vertical="top", wrap_text=True)
 
                     # Coloration selon l'état (colonne 15)
-                    print(col_idx)
-                    print(value)
                     if col_idx == 16:
-                        print('------------------------')
-                        print(value)
                         if value == "Traitée":
                             cell.fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
                         elif value == "À étudier":

@@ -3,15 +3,17 @@
 from PyQt5.QtWidgets import QTableWidgetItem, QMessageBox, QLineEdit
 from PyQt5.QtCore import Qt
 from app.dialogs.ui_graphdialog import GraphDialog
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 
 class TableMixin:
     """Affichage, filtrage et pagination des tableaux de résultats."""
 
     def display_table_for_view(self, df, table, widget, editable_col=None):
-        print("DF shape:", df.shape)
-        print("DF dtypes:", df.dtypes)
-        print("DF head:", df.head())
+        logger.debug("DF shape : %s", df.shape)
 
         # Robustesse : tout en str, index simple, pas de category !
         df = df.astype(str).fillna("")

@@ -7,6 +7,7 @@ from PyQt5.QtGui import QFont
 from datetime import datetime
 from PyQt5.QtWidgets import QDateEdit
 from PyQt5.QtCore import QDate
+from app.data.errors import ConflitModificationError
 from app.utils.decorators import busy_cursor_no_args
 from app.utils.ui_helpers import show_info, show_warning, show_error
 from app.views.pass_v3.widgets import NoScrollComboBox, ensure_combo_has_value
@@ -360,11 +361,21 @@ class EditDemandeDialog(QDialog):
                 data['date_traitement'] = ''
 
 
-        if self.data_manager.update_demande(self.id_demande, data):
+        try:
+            sauvegarde_ok = self.data_manager.update_demande(
+                self.id_demande, data,
+                expected_updated_at=(self.demande_data or {}).get('updated_at'))
+        except ConflitModificationError as e:
+            show_warning(self, "Conflit de modification",
+                         f"{e}\n\nVos changements n'ont PAS été enregistrés.\n"
+                         "Fermez cette fenêtre, rouvrez la demande puis refaites votre modification.")
+            return
+
+        if sauvegarde_ok:
             show_info(self, "Succès", "✅ Demande sauvegardée avec succès !")
             self.accept()
         else:
-            show_error(self, "Erreur", "❌ Erreur lors de la sauvegarde")
+            show_error(self, "Erreur", "❌ Sauvegarde impossible : " + (self.data_manager.last_error or "erreur lors de la sauvegarde"))
 
 
 class CreateDemandeDialog(QDialog):
@@ -599,7 +610,7 @@ class CreateDemandeDialog(QDialog):
                                     f"✅ Demande créée avec succès !\n\nID : {id_demande}\nLibellé : {data['libelle']}")
             self.accept()
         else:
-            show_error(self, "Erreur", "❌ Erreur lors de la création de la demande")
+            show_error(self, "Erreur", "❌ Création impossible : " + (self.data_manager.last_error or "erreur lors de la création"))
 
 
 class DuplicateDemandeDialog(QDialog):
@@ -947,4 +958,4 @@ class DuplicateDemandeDialog(QDialog):
             )
             self.accept()
         else:
-            show_error(self, "Erreur", "❌ Erreur lors de la duplication de la demande")
+            show_error(self, "Erreur", "❌ Duplication impossible : " + (self.data_manager.last_error or "erreur lors de la duplication"))

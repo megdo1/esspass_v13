@@ -7,13 +7,19 @@ CENTRALISATION COMPLÈTE - Aucun accès SQLite direct dans les vues
 import sqlite3
 from typing import List, Optional, Tuple
 from contextlib import contextmanager
+import logging
 import os
 
 import getpass
 import weakref
-import win32com.client
+
+try:
+    import win32com.client
+except ImportError:      # hors Windows / pywin32 absent (tests, CI) : identité Outlook indisponible
+    win32com = None
 
 from app.data.data_config import loadConfig
+from app.data.errors import ConflitModificationError, DatabaseError  # noqa: F401 (réexport)
 from app.data.mixins.config_mixin import ConfigMixin
 from app.data.mixins.referentiels_mixin import ReferentielsMixin
 from app.data.mixins.referentiels_admin_mixin import ReferentielsAdminMixin
@@ -22,6 +28,8 @@ from app.data.mixins.demandes_mixin import DemandesMixin
 from app.data.mixins.collecte_mixin import CollecteMixin
 from app.data.mixins.stats_mixin import StatsMixin
 
+logger = logging.getLogger(__name__)
+
 
 def get_windows_user_info():
     """
@@ -29,6 +37,8 @@ def get_windows_user_info():
     Retourne un dict avec 'error' si Outlook n'est pas disponible.
     """
     try:
+        if win32com is None:
+            raise RuntimeError("pywin32 non installé")
         outlook = win32com.client.Dispatch("Outlook.Application")
         session = outlook.Session
         account = session.CurrentUser
@@ -63,6 +73,7 @@ def get_windows_user_info():
         }
 
     except Exception as e:
+        logger.warning("Identité Outlook indisponible : %s", e)
         return {
             "error": str(e),
             "error_type": "outlook_not_running"
@@ -87,6 +98,15 @@ class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersM
         self.db_path = self.conf.get("sqlite_path", "")
         # ✅ AJOUT : Cache permanent utilisateur
         self._userwindows = None
+        # Dernière erreur d'accès base (None si la dernière opération a réussi).
+        # Permet de distinguer « aucun résultat » d'une erreur après un appel à
+        # _execute_query / _execute_update qui, eux, gardent leur contrat (None / False).
+        self.last_error: Optional[str] = None
+        # Compteur d'erreurs d'accès base depuis le démarrage : une vue le relève avant/après un
+        # chargement pour savoir si « aucune donnée » vient en réalité d'une erreur.
+        self.error_count: int = 0
+        # Rôle de l'utilisateur connecté, lu une fois (voir UsersMixin._role_courant)
+        self._role_cache: Optional[str] = None
 
         # Vérifier que le chemin est défini
         if not self.db_path:
@@ -130,10 +150,10 @@ class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersM
             conn.execute('PRAGMA cache_size=-16000;')    # 16 Mo
             conn.execute('PRAGMA temp_store=MEMORY;')
             yield conn, cursor
-        except Exception as e:
+        except Exception:
             if conn:
                 conn.rollback()
-            raise e
+            raise
         finally:
             if conn:
                 conn.close()
@@ -147,14 +167,12 @@ class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersM
             self._userwindows = info
         return info
 
-    def _verify_database(self):
-        """Vérifie que la base de données existe"""
-        if not os.path.exists(self.db_path):
-            print(f"⚠️ ATTENTION : Base de données introuvable : {self.db_path}")
-            return False
-        print(f"✅ Base de données trouvée : {self.db_path}")
-        return True
-
+    def _record_error(self, kind: str, query: str, exc: Exception) -> None:
+        """Journalise une erreur d'accès base et mémorise le message dans `last_error`."""
+        self.last_error = f"{kind} : {exc}"
+        self.error_count += 1
+        logger.error("Erreur SQL (%s) : %s | requête : %s", kind, exc, " ".join(query.split())[:500],
+                     exc_info=True)
 
     def _execute_query(self, query: str, params: tuple = ()) -> Optional[List[Tuple]]:
         """
@@ -164,16 +182,24 @@ class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersM
             params: Paramètres de la requête (tuple)
         Returns:
             Liste de tuples avec les résultats, ou None en cas d'erreur
+            (dans ce cas `self.last_error` contient le message ; il vaut None après un succès)
         """
         try:
             with self._get_connection() as (conn, cursor):
                 cursor.execute(query, params)
                 results = cursor.fetchall()
-                return results
+            self.last_error = None
+            return results
         except Exception as e:
-            print(f"❌ Erreur SQL (SELECT) : {e}")
-            print(f"   Requête : {query}")
+            self._record_error("SELECT", query, e)
             return None
+
+    def query_strict(self, query: str, params: tuple = ()) -> List[Tuple]:
+        """Comme `_execute_query` mais lève `DatabaseError` au lieu de renvoyer None."""
+        results = self._execute_query(query, params)
+        if results is None:
+            raise DatabaseError(self.last_error or "Erreur d'accès à la base de données")
+        return results
 
     def execute_query(self, query: str, params: tuple = ()) -> Optional[List[Tuple]]:
         """
@@ -193,35 +219,40 @@ class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersM
             query: Requête SQL à exécuter
             params: Paramètres de la requête (tuple)
         Returns:
-            True si succès, False sinon
+            True si succès, False sinon (`self.last_error` contient alors le message)
         """
         try:
             with self._get_connection() as (conn, cursor):
                 cursor.execute(query, params)
                 conn.commit()
-                return True
+            self.last_error = None
+            return True
         except Exception as e:
-            print(f"❌ Erreur SQL (UPDATE) : {e}")
-            print(f"   Requête : {query}")
+            self._record_error("UPDATE", query, e)
             return False
+
+    def update_strict(self, query: str, params: tuple = ()) -> None:
+        """Comme `_execute_update` mais lève `DatabaseError` en cas d'échec."""
+        if not self._execute_update(query, params):
+            raise DatabaseError(self.last_error or "Erreur d'accès à la base de données")
 
     def _execute_many(self, query: str, params: tuple = ()) -> bool:
         """
-        Exécute une requête SQL UPDATE/INSERT/DELETE
+        Exécute une requête SQL en lot (executemany)
         Args:
             query: Requête SQL à exécuter
-            params: Paramètres de la requête (tuple)
+            params: Liste de tuples de paramètres
         Returns:
-            True si succès, False sinon
+            True si succès, False sinon (`self.last_error` contient alors le message)
         """
         try:
             with self._get_connection() as (conn, cursor):
                 cursor.executemany(query, params)
                 conn.commit()
-                return True
+            self.last_error = None
+            return True
         except Exception as e:
-            print(f"❌ Erreur SQL (executemany) : {e}")
-            print(f"   Requête : {query}")
+            self._record_error("executemany", query, e)
             return False
 
     def execute_many(self, query: str, params: tuple = ()) -> bool:
@@ -237,51 +268,3 @@ class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersM
             True si succès, False sinon
         """
         return self._execute_update(query, params)
-
-
-    # ----------------------------------
-    # ========================================================================
-    # GESTION DES UTILISATEURS
-    # ========================================================================
-
-
-    # ========================================================================
-    # GESTION DES COLLECTES
-    # ========================================================================
-
-
-    # ========================================================================
-    # GESTION DES STATISTIQUES
-    # ========================================================================
-
-
-    # ========================================================================
-    # GESTION DES DEMANDES
-    # ========================================================================
-
-
-    # ========================================================================
-    # GESTION DES LISTES DE VALEURS
-    # ========================================================================
-
-
-    # ========================================================================
-    # GESTION DES RÔLES
-    # ========================================================================
-
-
-        # ========================================================================
-        # GESTION DES UTILISATEURS - SÉCURITÉ ET DROITS
-        # ========================================================================
-
-
-# Test du module
-if __name__ == "__main__":
-    dm = DataManager()
-    print("\n" + "=" * 80)
-    print("TEST DU MODULE DATA_MANAGER")
-    print("=" * 80)
-    print("\n1️⃣ UTILISATEUR :")
-    user_id = dm.creer_utilisateur("testnom")
-    print(f"  ID nouvel utilisateur : {user_id}")
-    print("=" * 80)

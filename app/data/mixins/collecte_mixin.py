@@ -20,6 +20,9 @@ class CollecteMixin:
         Returns:
             int: L'ID de la collecte créée, ou None en cas d'erreur
         """
+        if self._refuser_si_pas_droit('mettre_a_jour', "lancer une collecte de mails"):
+            return None
+
         try:
             with self._get_connection() as (conn, cursor):
                 cursor.execute("""
@@ -30,11 +33,11 @@ class CollecteMixin:
                 id_collecte = cursor.lastrowid
                 conn.commit()
 
-                print(f"📦 Nouvelle collecte : ID {id_collecte}")
+                logger.info(f"📦 Nouvelle collecte : ID {id_collecte}")
                 return id_collecte
 
         except Exception as e:
-            print(f"❌ Erreur lors de la création de la collecte : {e}")
+            logger.error(f"❌ Erreur lors de la création de la collecte : {e}")
             return None
 
     def get_last_collecte(self) -> Dict[str, any]:
@@ -135,7 +138,7 @@ class CollecteMixin:
             return None
 
         except Exception as e:
-            print(f"❌ Erreur recherche demande par conversation_id : {e}")
+            logger.error(f"❌ Erreur recherche demande par conversation_id : {e}")
             return None
 
     def get_demande_id_by_thread_key(self, thread_key: str, days_limit: int = 2) -> Optional[int]:
@@ -168,7 +171,7 @@ class CollecteMixin:
             return None
 
         except Exception as e:
-            print(f"❌ Erreur recherche demande par thread_key : {e}")
+            logger.error(f"❌ Erreur recherche demande par thread_key : {e}")
             return None
 
     def get_demande_by_message_ids(self, message_ids: List[str]) -> Optional[int]:
@@ -203,7 +206,7 @@ class CollecteMixin:
             return None
 
         except Exception as e:
-            print(f"❌ Erreur recherche demande par message IDs : {e}")
+            logger.error(f"❌ Erreur recherche demande par message IDs : {e}")
             return None
 
     def _ajouter_email_a_demande(self,
@@ -261,11 +264,11 @@ class CollecteMixin:
                     )
 
                 conn.commit()
-                print(f"♻️ Réponse ajoutée à la demande #{id_demande}")
+                logger.info(f"♻️ Réponse ajoutée à la demande #{id_demande}")
                 return True
 
         except Exception as e:
-            print(f"❌ Erreur ajout email à demande : {e}")
+            logger.error(f"❌ Erreur ajout email à demande : {e}")
             return False
 
     def ajouter_reponse_a_demande(self,
@@ -330,6 +333,8 @@ class CollecteMixin:
         Returns:
             int: ID de la demande créée, ou None si erreur
         """
+        if self._refuser_si_pas_droit('mettre_a_jour', "lancer une collecte de mails"):
+            return None
         try:
             with self._get_connection() as (conn, cursor):
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -375,13 +380,13 @@ class CollecteMixin:
             )
 
             if success:
-                print(f"✨ Nouvelle demande créée : ID {id_demande}, conversation_id: {conversation_id}")
+                logger.info(f"✨ Nouvelle demande créée : ID {id_demande}, conversation_id: {conversation_id}")
                 return id_demande
             else:
                 return None
 
         except Exception as e:
-            print(f"❌ Erreur création demande avec email : {e}")
+            logger.error(f"❌ Erreur création demande avec email : {e}")
             return None
 
     def lier_demande_a_collecte(self, id_collecte: int, id_demande: int) -> bool:
@@ -402,7 +407,7 @@ class CollecteMixin:
             return success
 
         except Exception as e:
-            print(f"❌ Erreur liaison demande-collecte : {e}")
+            logger.error(f"❌ Erreur liaison demande-collecte : {e}")
             return False
 
     def ajouter_piece_jointe(self,
@@ -432,12 +437,12 @@ class CollecteMixin:
             success = self._execute_update(query, (id_demande, nom_fichier, chemin_fichier, taille_fichier,content_id))
 
             if success:
-                print(f"📎 Pièce jointe ajoutée : {nom_fichier} ({taille_fichier} octets)")
+                logger.info(f"📎 Pièce jointe ajoutée : {nom_fichier} ({taille_fichier} octets)")
 
             return success
 
         except Exception as e:
-            print(f"❌ Erreur ajout pièce jointe : {e}")
+            logger.error(f"❌ Erreur ajout pièce jointe : {e}")
             return False
 
     def get_images_inline_by_demande(self, id_demande: int,id_utilisateur: int = None) -> list:
@@ -477,7 +482,7 @@ class CollecteMixin:
             ]
 
         except Exception as e:
-            print(f"❌ Erreur récupération images inline : {e}")
+            logger.error(f"❌ Erreur récupération images inline : {e}")
             return []
 
     def mettre_a_jour_statistiques_collecte(self,
@@ -507,13 +512,13 @@ class CollecteMixin:
             success = self._execute_update(query, (nb_nouvelles_demandes, nb_emails_traites, id_collecte))
 
             if success:
-                print(
+                logger.info(
                     f"📊 Statistiques collecte #{id_collecte} mises à jour : {nb_nouvelles_demandes} nouvelles, {nb_emails_traites} traités")
 
             return success
 
         except Exception as e:
-            print(f"❌ Erreur mise à jour statistiques collecte : {e}")
+            logger.error(f"❌ Erreur mise à jour statistiques collecte : {e}")
             return False
 
     def supprimer_collecte(self, id_collecte: int) -> bool:
@@ -526,10 +531,12 @@ class CollecteMixin:
         Returns:
             True si succès, False sinon
         """
+        if self._refuser_si_pas_droit('mettre_a_jour', "supprimer une collecte"):
+            return False
         query = "DELETE FROM metadonnees_collecte WHERE id_collecte = ?"
         success = self._execute_update(query, (id_collecte,))
 
         if success:
-            print(f"⚠️ collecte #{id_collecte} supprimé définitivement")
+            logger.warning(f"⚠️ collecte #{id_collecte} supprimé définitivement")
 
         return success

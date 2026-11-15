@@ -8,6 +8,10 @@ from app.logic.logic_visite import calcul_indicateurs_visite
 from app.utils_excel import extract_data_after_second_empty_row, check_required_columns
 from app.thread_progress import ProgressThread
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class TraitementMixin:
     """Chargement des fichiers, vérification et calcul des indicateurs avec barre de progression."""
@@ -348,7 +352,7 @@ class TraitementMixin:
             try:
                 df_display = df.astype(str).fillna("").reset_index(drop=True)
             except Exception as e:
-                print("ERREUR lors du cast DataFrame:", e, flush=True)
+                logger.error("Erreur lors du cast DataFrame : %s", e)
                 QMessageBox.critical(self, "Erreur DataFrame", str(e))
                 widget.progress_bar.setVisible(False)
                 return
@@ -359,7 +363,7 @@ class TraitementMixin:
 
             def on_finish():
                 if not hasattr(widget, "filters_layout") or not hasattr(widget, "filters_editors"):
-                    print("Erreur : widget de la mauvaise vue ou mal initialisé !")
+                    logger.error("Erreur : widget de la mauvaise vue ou mal initialisé !")
                     return
                 self.display_table_for_view(df, widget.table, widget)
                 widget.progress_bar.setVisible(False)

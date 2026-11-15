@@ -1,4 +1,8 @@
 from PyQt5.QtCore import QObject, pyqtSignal
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 
 class LoadWorker(QObject):
@@ -23,9 +27,7 @@ class LoadWorker(QObject):
             self.progress.emit(100)
             self.finished.emit(df_data, idx_en_tete)
         except Exception as e:
-            import traceback
-            print(f"Worker {self.func} exception:", e, flush=True)
-            print(traceback.format_exc(), flush=True)
+            logger.exception("Worker %s exception : %s", self.func, e)
             self.finished.emit(None, None)
 
 

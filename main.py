@@ -1,4 +1,5 @@
 import ctypes
+import logging
 import os
 import sys
 import traceback
@@ -33,11 +34,8 @@ def exception_hook(exctype, value, tb):
     """Capture toutes les exceptions non gérées et les affiche dans une MessageBox."""
     error_msg = ''.join(traceback.format_exception(exctype, value, tb))
 
-    print("=" * 80)
-    print("❌ ERREUR NON GÉRÉE DÉTECTÉE !")
-    print("=" * 80)
-    print(error_msg)
-    print("=" * 80)
+    # Journal fichier (dossier ES-PIGC de APPDATA) : seule trace exploitable en exe sans console
+    logging.getLogger("espass.main").critical("Erreur non gérée : %s", error_msg)
 
     msg = QMessageBox()
     msg.setIcon(QMessageBox.Critical)

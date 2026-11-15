@@ -631,7 +631,7 @@ class IndicateursOAView(CommonViewMixin, SharedIPVMixin, SharedISVMixin, SharedI
 
     # Analyse de la Surveillance
     def afficher_analyse_surveillance(self):
-        print("DEBUG: - afficher_analyse_surveillance - 1", flush=True)
+        logger.debug("DEBUG: - afficher_analyse_surveillance - 1")
         from app.logic.logic_indicateurs_oa import (
             analyse_surveillance_statuts,
             maintenance_utm_hors_delai,
@@ -641,7 +641,7 @@ class IndicateursOAView(CommonViewMixin, SharedIPVMixin, SharedISVMixin, SharedI
         if self.df_source is None:
             QMessageBox.warning(self, "Erreur", "Aucun fichier chargé.")
             return
-        print("DEBUG: - afficher_analyse_surveillance - 2", flush=True)
+        logger.debug("DEBUG: - afficher_analyse_surveillance - 2")
         # Filtre Infrapôle comme dans lancer_calcul()
         infrapole_choisi = self.combo_infrapole.currentText()
         if infrapole_choisi != "Tous" and infrapole_choisi != "Infrapôle":
@@ -659,19 +659,19 @@ class IndicateursOAView(CommonViewMixin, SharedIPVMixin, SharedISVMixin, SharedI
             return
 
         # Calcul métier
-        print("DEBUG: - afficher_analyse_surveillance - 3", flush=True)
+        logger.debug("DEBUG: - afficher_analyse_surveillance - 3")
         data_surv = analyse_surveillance_statuts(
             df_filtered,
             annee=annee,
             categories=("VI", "VD", "IDE", "IDR")  # ordre d’affichage demandé
         )
-        print("DEBUG: - afficher_analyse_surveillance - 4", flush=True)
+        logger.debug("DEBUG: - afficher_analyse_surveillance - 4")
         u0_utm_df = maintenance_utm_hors_delai(df_filtered, annee, "U0s")
-        print("DEBUG: - afficher_analyse_surveillance - 4.1", flush=True)
+        logger.debug("DEBUG: - afficher_analyse_surveillance - 4.1")
         u1_utm_df = maintenance_utm_hors_delai(df_filtered, annee, "U1s")
-        print("DEBUG: - afficher_analyse_surveillance - 4.2", flush=True)
+        logger.debug("DEBUG: - afficher_analyse_surveillance - 4.2")
         cat_urg_df = maintenance_nb_par_categorie_urgence(df_filtered, annee)
-        print("DEBUG: - afficher_analyse_surveillance - 5", flush=True)
+        logger.debug("DEBUG: - afficher_analyse_surveillance - 5")
 
         if not data_surv or all(len(v) == 0 for v in data_surv.values()):
             QMessageBox.information(self, "Analyse", "Aucune donnée exploitable pour l’analyse.")
@@ -683,7 +683,7 @@ class IndicateursOAView(CommonViewMixin, SharedIPVMixin, SharedISVMixin, SharedI
         # dlg.exec_()
 
         # option: Affichage NON bloquant
-        print("DEBUG: - afficher_analyse_surveillance - 6", flush=True)
+        logger.debug("DEBUG: - afficher_analyse_surveillance - 6")
         self._analyse_win = AnalyseSurveillanceDialog(
             data_surv, programme=annee,
             u0_utm_df=u0_utm_df, u1_utm_df=u1_utm_df, cat_urg_df=cat_urg_df,

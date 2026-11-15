@@ -61,7 +61,7 @@ class IndicateursOAGraphDialog(QDialog):
             if isinstance(ind, str) and (re.match(r"^\d{4}_U0s$", ind) or re.match(r"^\d{4}_ESR$", ind)):
                 if ind not in self.racines_solides:
                     self.racines_solides.append(ind)
-                    print("2", self.racines_solides)
+                    logger.debug("racines_solides : %s", self.racines_solides)
 
         self.btn_export = QPushButton("Exporter l'image")
         self.btn_export.clicked.connect(self.export_image)
@@ -396,7 +396,7 @@ class AnalyseSurveillanceDialog(ChartsMixin, QDialog):
     def __init__(self, data_dict, programme=None, parent=None,
                  u0_utm_df=None, u1_utm_df=None, cat_urg_df=None):
         super().__init__(parent)
-        print("DEBUG: - AnalyseSurveillanceDialog - 1", flush=True)
+        logger.debug("DEBUG: - AnalyseSurveillanceDialog - 1")
         self.data = data_dict          # dict: {cat: DataFrame[Statut, Nombre, Pourcentage]}
         self.programme = programme
         self.u0_utm_df = u0_utm_df  # DF[UTM, Nombre, Pourcentage]
@@ -526,17 +526,17 @@ class AnalyseSurveillanceDialog(ChartsMixin, QDialog):
 
         #Maintenance
         # U0s par UTM
-        print("DEBUG: - U0s par UTM", flush=True)
+        logger.debug("DEBUG: - U0s par UTM")
         tab_u0 = self._tab_donut_utm_df("OA - PRECOS U0 S Hors délai par UTM", self.u0_utm_df)
         self.tabs.addTab(tab_u0, "U0s par UTM")
 
         # U1s par UTM
-        print("DEBUG: - U1s par UTM", flush=True)
+        logger.debug("DEBUG: - U1s par UTM")
         tab_u1 = self._tab_donut_utm_df("OA - PRECOS U1 S Hors délai par UTM", self.u1_utm_df)
         self.tabs.addTab(tab_u1, "U1s par UTM")
 
         # Catégorie × Urgence
-        print("DEBUG: - Catégorie × Urgence", flush=True)
+        logger.debug("DEBUG: - Catégorie × Urgence")
         tab_cat = self._tab_bar_hstack_cat_urgences_df("OA - Nombre d'Urgence par Catégorie et Urgence",
                                                        self.cat_urg_df)
         self.tabs.addTab(tab_cat, "Catégorie × Urgence")

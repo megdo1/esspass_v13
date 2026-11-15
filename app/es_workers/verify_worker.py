@@ -1,5 +1,9 @@
 from PyQt5.QtCore import QObject, pyqtSignal
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class VerifyWorker(QObject):
     progress = pyqtSignal(int)
@@ -20,6 +24,6 @@ class VerifyWorker(QObject):
             # Fin du traitement threadé : on retourne le DataFrame nettoyé
             self.finished.emit(df_clean)
         except Exception as e:
-            print(f"ERREUR dans VerifyWorker : {e}")
+            logger.error(f"ERREUR dans VerifyWorker : {e}")
             self.finished.emit(None)
 

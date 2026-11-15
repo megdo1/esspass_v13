@@ -9,9 +9,12 @@ Règles de sécurité des données :
 - les noms de tables/colonnes viennent exclusivement de la table REFERENTIELS ci-dessous (jamais de l'utilisateur).
 """
 
+import copy
 import logging
 import re
 from typing import Dict, List, Optional, Tuple
+
+from app.data.errors import DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -175,12 +178,26 @@ class ReferentielsAdminMixin:
         return rows[0][0] if rows else None
 
     # ------------------------------------------------------------------ rechargement du cache
-    def reload_reference_data(self):
-        """Recharge les listes en mémoire (après une modification)."""
-        for d in (self.liste_valeurs, self.id_mapping, self.sous_categories_by_categorie,
-                  self.sous_categories_id_mapping, self.sous_categories_ids_by_categorie):
+    def reload_reference_data(self) -> bool:
+        """Recharge les listes en mémoire (après une modification).
+
+        En cas d'erreur d'accès base, les listes précédentes sont conservées (jamais de listes
+        vides silencieuses). Retourne True si le rechargement a réussi.
+        """
+        caches = (self.liste_valeurs, self.id_mapping, self.sous_categories_by_categorie,
+                  self.sous_categories_id_mapping, self.sous_categories_ids_by_categorie)
+        sauvegarde = [copy.deepcopy(d) for d in caches]
+        for d in caches:
             d.clear()
-        self._load_reference_data()
+        try:
+            self._load_reference_data()
+            return True
+        except DatabaseError:
+            for d, ancien in zip(caches, sauvegarde):
+                d.clear()
+                d.update(ancien)
+            logger.warning("Rechargement des listes impossible : anciennes valeurs conservées")
+            return False
 
     @classmethod
     def refresh_reference_data_all(cls):

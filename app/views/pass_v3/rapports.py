@@ -489,6 +489,7 @@ class RapportViewerDialog(RapportTabsMixin, RapportExportMixin, QDialog):
     def generate_reports(self):
         """Génère tous les rapports sélectionnés"""
         ensure_mpl_cache_dir()
+        erreurs_avant = self.data_manager.error_count
         if self.rapports_selectionnes.get('categorie'):
             self.create_rapport_categorie_tab()
             self.create_rapport_sous_categorie_tab()   # toujours lié à catégorie
@@ -502,7 +503,12 @@ class RapportViewerDialog(RapportTabsMixin, RapportExportMixin, QDialog):
             self.create_rapport_metriques_tab()
         if self.rapports_selectionnes.get('copil'):
             self.create_rapport_copil_tab()
-            
+
+        if self.data_manager.error_count > erreurs_avant:
+            show_warning(self, "Données incomplètes",
+                         "Une erreur d'accès à la base est survenue pendant la génération : certains "
+                         "rapports peuvent être vides ou incomplets.\n\n"
+                         f"{self.data_manager.last_error}")
 
 
     def _copil_refresh_charts(self, chartarea):

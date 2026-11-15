@@ -2,6 +2,13 @@
 
 from typing import List, Optional, Tuple
 
+import logging
+
+from app.data.errors import DatabaseError
+
+logger = logging.getLogger(__name__)
+
+
 
 class ReferentielsMixin:
     """Listes de valeurs et référentiels (canaux, domaines, états...)."""
@@ -22,7 +29,7 @@ class ReferentielsMixin:
 
             for table_name, (id_col, libelle_col) in tables_config.items():
                 query = f"SELECT {id_col}, {libelle_col} FROM {table_name} WHERE actif = 1 ORDER BY {libelle_col}"
-                results = self._execute_query(query)
+                results = self.query_strict(query)
 
                 if results:
                     self.liste_valeurs[table_name] = [row[1] for row in results]
@@ -39,7 +46,7 @@ class ReferentielsMixin:
                 WHERE sc.actif = 1
                 ORDER BY c.libelle_categorie, sc.libelle_sous_categorie
             """
-            results_sc = self._execute_query(query_sc)
+            results_sc = self.query_strict(query_sc)
 
             if results_sc:
                 for id_sc, libelle_sc, libelle_cat in results_sc:
@@ -51,7 +58,7 @@ class ReferentielsMixin:
 
             # Utilisateurs
             query_users = "SELECT id_utilisateur, nom || ' ' || prenom FROM utilisateurs WHERE actif = 1"
-            results_users = self._execute_query(query_users)
+            results_users = self.query_strict(query_users)
 
             if results_users:
                 self.liste_valeurs['utilisateurs'] = [row[1] for row in results_users]
@@ -60,10 +67,14 @@ class ReferentielsMixin:
                 self.liste_valeurs['utilisateurs'] = []
                 self.id_mapping['utilisateurs'] = {}
 
-            print("✅ Données de référence chargées")
+            logger.info("✅ Données de référence chargées")
 
-        except Exception as e:
-            print(f"❌ Erreur chargement données référence : {e}")
+        except DatabaseError:
+            # Erreur d'accès base : ne pas présenter des listes vides comme des données valides
+            logger.error("Chargement des données de référence impossible", exc_info=True)
+            raise
+        except Exception:
+            logger.exception("Erreur chargement données référence")
 
     def get_categories_list(self, date_debut: str, date_fin: str) -> Optional[List[Tuple]]:
         """Récupère la liste des catégories disponibles pour le filtre"""

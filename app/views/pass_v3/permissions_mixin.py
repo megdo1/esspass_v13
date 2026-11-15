@@ -1,3 +1,4 @@
+from app.utils.auth import has_permission
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,15 +38,15 @@ class PermissionsMixin:
 
             if result:
                 role = result[0][0]
-                print(f"✅ Nom : {nom_complet}")
-                print(f"✅ Rôle de l'utilisateur: {role}")
+                logger.info(f"✅ Nom : {nom_complet}")
+                logger.info(f"✅ Rôle de l'utilisateur: {role}")
                 return role
 
-            print(f"❌ Aucun rôle trouvé pour l'utilisateur")
+            logger.error(f"❌ Aucun rôle trouvé pour l'utilisateur")
             return None
 
         except Exception as e:
-            print(f"❌ Erreur lors de la récupération du rôle : {e}")
+            logger.error(f"❌ Erreur lors de la récupération du rôle : {e}")
             return None
 
     def update_button_permissions(self):
@@ -57,82 +58,83 @@ class PermissionsMixin:
             return
 
         # Déterminer les droits selon le rôle
-        can_create = user_role in ['Membre MCO', 'Administrateur']
-        can_treat = user_role in ['Membre MCO', 'Administrateur']
-        can_manage_mass = user_role in ['Membre MCO', 'Administrateur']
-        can_archive = user_role == 'Administrateur'
-        can_export = user_role in ['Consultant', 'Membre MCO', 'Administrateur']
-        can_reports = user_role in ['Consultant', 'Membre MCO', 'Administrateur']
-        can_duplicate = user_role in ['Membre MCO', 'Administrateur']
-        can_manage = user_role in ['Membre MCO', 'Administrateur']
-        can_cancel = user_role in ['Membre MCO', 'Administrateur']
-        can_update = user_role in ['Membre MCO', 'Administrateur']
+        # Source unique des droits : matrice utils.auth.PERMISSIONS
+        can_create = has_permission(user_role, 'creer_demande')
+        can_treat = has_permission(user_role, 'traiter')
+        can_manage_mass = has_permission(user_role, 'gerer_masse')
+        can_archive = has_permission(user_role, 'archiver')
+        can_export = has_permission(user_role, 'exporter')
+        can_reports = has_permission(user_role, 'rapports')
+        can_duplicate = has_permission(user_role, 'dupliquer')
+        can_manage = has_permission(user_role, 'gerer')
+        can_cancel = has_permission(user_role, 'annuler')
+        can_update = has_permission(user_role, 'mettre_a_jour')
 
-        print(f"\n{'=' * 80}")
-        print(f"🎛️ MISE À JOUR DE TOUS LES BOUTONS - Rôle: {user_role}")
-        print(f"{'=' * 80}")
+        logger.info(f"\n{'=' * 80}")
+        logger.info(f"🎛️ MISE À JOUR DE TOUS LES BOUTONS - Rôle: {user_role}")
+        logger.info(f"{'=' * 80}")
 
         # ========== BOUTONS GLOBAUX ==========
-        print(f"\n📋 BOUTONS GLOBAUX :")
+        logger.info(f"\n📋 BOUTONS GLOBAUX :")
 
         # Nouvelle demande
         if hasattr(self, 'btn_nouvelle_demande'):
             self.btn_nouvelle_demande.setEnabled(can_create)
             self._update_button_style(self.btn_nouvelle_demande, can_create)
-            print(f"  ➕ Nouvelle demande : {'✅ ACTIF' if can_create else '❌ GRISÉ'}")
+            logger.debug(f"  ➕ Nouvelle demande : {'✅ ACTIF' if can_create else '❌ GRISÉ'}")
 
         # Annuler masse
         if hasattr(self, 'btn_annuler_masse'):
             self.btn_annuler_masse.setEnabled(can_manage_mass)
             self._update_button_style(self.btn_annuler_masse, can_manage_mass)
-            print(f"  🚫 Annuler (masse) : {'✅ ACTIF' if can_manage_mass else '❌ GRISÉ'}")
+            logger.debug(f"  🚫 Annuler (masse) : {'✅ ACTIF' if can_manage_mass else '❌ GRISÉ'}")
 
         # Archiver masse
         if hasattr(self, 'btn_archiver_masse'):
             self.btn_archiver_masse.setEnabled(can_archive)
             self._update_button_style(self.btn_archiver_masse, can_archive)
-            print(f"  📦 Archiver (masse) : {'✅ ACTIF' if can_archive else '❌ GRISÉ'}")
+            logger.debug(f"  📦 Archiver (masse) : {'✅ ACTIF' if can_archive else '❌ GRISÉ'}")
 
         # Traiter masse
         if hasattr(self, 'btn_traiter_masse'):
             self.btn_traiter_masse.setEnabled(can_treat)
             self._update_button_style(self.btn_traiter_masse, can_treat)
-            print(f"  ✅ Traiter (masse) : {'✅ ACTIF' if can_treat else '❌ GRISÉ'}")
+            logger.debug(f"  ✅ Traiter (masse) : {'✅ ACTIF' if can_treat else '❌ GRISÉ'}")
 
         # Gérer masse
         if hasattr(self, 'btn_gerer_masse'):
             self.btn_gerer_masse.setEnabled(can_manage_mass)
             self._update_button_style(self.btn_gerer_masse, can_manage_mass)
-            print(f"  ⚙️ Gérer (masse) : {'✅ ACTIF' if can_manage_mass else '❌ GRISÉ'}")
+            logger.debug(f"  ⚙️ Gérer (masse) : {'✅ ACTIF' if can_manage_mass else '❌ GRISÉ'}")
 
         # Exporter
         if hasattr(self, 'btn_exporter'):
             self.btn_exporter.setEnabled(can_export)
             self._update_button_style(self.btn_exporter, can_export)
-            print(f"  💾 Exporter : {'✅ ACTIF' if can_export else '❌ GRISÉ'}")
+            logger.debug(f"  💾 Exporter : {'✅ ACTIF' if can_export else '❌ GRISÉ'}")
 
         # Rapports
         if hasattr(self, 'btn_rapports'):
             self.btn_rapports.setEnabled(can_reports)
             self._update_button_style(self.btn_rapports, can_reports)
-            print(f"  📊 Rapports : {'✅ ACTIF' if can_reports else '❌ GRISÉ'}")
+            logger.debug(f"  📊 Rapports : {'✅ ACTIF' if can_reports else '❌ GRISÉ'}")
 
         # Mettre à jour
         if hasattr(self, 'btn_update'):
             self.btn_update.setEnabled(can_update)
             self._update_button_style(self.btn_update, can_update)
-            print(f"  🔄 Mettre à jour : {'✅ ACTIF' if can_update else '❌ GRISÉ'}")
+            logger.debug(f"  🔄 Mettre à jour : {'✅ ACTIF' if can_update else '❌ GRISÉ'}")
 
         # ========== BOUTONS UNITAIRES (dans le tableau) ==========
         if hasattr(self, 'unit_buttons'):
-            print(f"\n📋 BOUTONS UNITAIRES (dans le tableau) :")
+            logger.info(f"\n📋 BOUTONS UNITAIRES (dans le tableau) :")
 
             # Dupliquer
             if 'dupliquer' in self.unit_buttons:
                 for btn in self.unit_buttons['dupliquer']:
                     btn.setEnabled(can_duplicate)
                     self._update_button_style(btn, can_duplicate)
-                print(
+                logger.debug(
                     f"  📋 Dupliquer ({len(self.unit_buttons['dupliquer'])} btn) : {'✅ ACTIF' if can_duplicate else '❌ GRISÉ'}")
 
             # Gérer
@@ -140,14 +142,14 @@ class PermissionsMixin:
                 for btn in self.unit_buttons['gerer']:
                     btn.setEnabled(can_manage)
                     self._update_button_style(btn, can_manage)
-                print(f"  ⚙️ Gérer ({len(self.unit_buttons['gerer'])} btn) : {'✅ ACTIF' if can_manage else '❌ GRISÉ'}")
+                logger.debug(f"  ⚙️ Gérer ({len(self.unit_buttons['gerer'])} btn) : {'✅ ACTIF' if can_manage else '❌ GRISÉ'}")
 
             # Traiter
             if 'traiter' in self.unit_buttons:
                 for btn in self.unit_buttons['traiter']:
                     btn.setEnabled(can_treat)
                     self._update_button_style(btn, can_treat)
-                print(
+                logger.debug(
                     f"  ✅ Traiter ({len(self.unit_buttons['traiter'])} btn) : {'✅ ACTIF' if can_treat else '❌ GRISÉ'}")
 
             # Annuler
@@ -155,7 +157,7 @@ class PermissionsMixin:
                 for btn in self.unit_buttons['annuler']:
                     btn.setEnabled(can_cancel)
                     self._update_button_style(btn, can_cancel)
-                print(
+                logger.debug(
                     f"  🚫 Annuler ({len(self.unit_buttons['annuler'])} btn) : {'✅ ACTIF' if can_cancel else '❌ GRISÉ'}")
 
             # Archiver
@@ -163,10 +165,10 @@ class PermissionsMixin:
                 for btn in self.unit_buttons['archiver']:
                     btn.setEnabled(can_archive)
                     self._update_button_style(btn, can_archive)
-                print(
+                logger.debug(
                     f"  📦 Archiver ({len(self.unit_buttons['archiver'])} btn) : {'✅ ACTIF' if can_archive else '❌ GRISÉ'}")
 
-        print(f"{'=' * 80}\n")
+        logger.info(f"{'=' * 80}\n")
 
     def _update_button_style(self, button, is_enabled):
         """Change UNIQUEMENT la couleur de background si inactif"""

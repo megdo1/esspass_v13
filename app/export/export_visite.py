@@ -3,6 +3,10 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from copy import copy
 import datetime
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 def export_visites_cycliques(
     df, trimestre, year, chemin_export, modele_path,
@@ -68,17 +72,14 @@ def export_visites_cycliques(
     # Insérer les lignes du DataFrame (avec style du modèle, police non-gras)
     for r_idx, row in enumerate(df.itertuples(index=False), 1):
         if r_idx == 1:
-            print("DEBUG - Attributs du premier row :")
-            print(row)
-            print("Liste des noms d'attributs :")
-            print(row._fields)
+            logger.debug("Attributs du premier row : %s", row._fields)
 
         # Pour trouver l'attribut correspondant à "Indicateur (Validation) en %"
         if r_idx == 1:
             col_missing = "Indicateur (Validation) en %"
             idx_missing = list(df.columns).index(col_missing)
             attr_missing = row._fields[idx_missing]
-            print(f"DEBUG: colonne '{col_missing}' -> attribut '{attr_missing}'")
+            logger.debug(f"DEBUG: colonne '{col_missing}' -> attribut '{attr_missing}'")
         # Ensuite, dans chaque ligne :
         is_missing = str(getattr(row, attr_missing, "")).strip().lower() == "données manquantes"
 

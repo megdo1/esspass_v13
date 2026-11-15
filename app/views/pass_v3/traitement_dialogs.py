@@ -7,6 +7,7 @@ from PyQt5.QtGui import QFont
 from datetime import datetime
 from PyQt5.QtWidgets import QDateEdit
 from PyQt5.QtCore import QDate
+from app.data.errors import ConflitModificationError
 from app.utils.decorators import busy_cursor_no_args
 from app.utils.ui_helpers import show_info, show_warning, show_error
 from app.views.pass_v3.widgets import NoScrollComboBox
@@ -267,11 +268,21 @@ class TraiterDemandeDialog(QDialog):
 
 
         # Mettre à jour uniquement les champs de traitement
-        if self.data_manager.update_demande(self.id_demande, data):
+        try:
+            sauvegarde_ok = self.data_manager.update_demande(
+                self.id_demande, data,
+                expected_updated_at=(self.demande_data or {}).get('updated_at'))
+        except ConflitModificationError as e:
+            show_warning(self, "Conflit de modification",
+                         f"{e}\n\nVos changements n'ont PAS été enregistrés.\n"
+                         "Fermez cette fenêtre, rouvrez la demande puis refaites votre traitement.")
+            return
+
+        if sauvegarde_ok:
             show_info(self, "Succès", "✅ Traitement sauvegardé avec succès !")
             self.accept()
         else:
-            show_error(self, "Erreur", "❌ Erreur lors de la sauvegarde du traitement")
+            show_error(self, "Erreur", "❌ Sauvegarde du traitement impossible : " + (self.data_manager.last_error or "erreur lors de la sauvegarde"))
 
 
 class TraiterMasseDialog(QDialog):

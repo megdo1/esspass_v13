@@ -4,7 +4,12 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 import logging
 
+from app.data.errors import ConflitModificationError
+
 logger = logging.getLogger(__name__)
+
+# Valeur par défaut de `expected_updated_at` : aucune vérification de version (compatibilité)
+NON_VERIFIE = object()
 
 
 class DemandesMixin:
@@ -53,11 +58,11 @@ class DemandesMixin:
 
                 # Formater avec 8 chiffres : ESPASS00000001
                 conversation_id = f"ESPASS{numero:08d}"
-                print(f"✅ conversation_id généré : {conversation_id} (séquence: {numero})")
+                logger.info(f"✅ conversation_id généré : {conversation_id} (séquence: {numero})")
                 return conversation_id
 
         except Exception as e:
-            print(f"❌ Erreur génération conversation_id : {e}")
+            logger.error(f"❌ Erreur génération conversation_id : {e}")
             # Fallback sur timestamp en cas d'erreur critique
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
             return f"ESPASS{timestamp}"
@@ -73,6 +78,8 @@ class DemandesMixin:
         """
         if not liste_ids:
             return (0, 0)
+        if self._refuser_si_pas_droit('gerer_masse', "modifier des demandes en masse"):
+            return (0, len(liste_ids))
 
         succes = 0
         echec = 0
@@ -94,11 +101,11 @@ class DemandesMixin:
                         echec += 1
 
                 conn.commit()
-                print(f"✅ Mise à jour en masse : {succes} succès, {echec} échecs")
+                logger.info(f"✅ Mise à jour en masse : {succes} succès, {echec} échecs")
                 return (succes, echec)
 
         except Exception as e:
-            print(f"❌ Erreur mise à jour en masse : {e}")
+            logger.error(f"❌ Erreur mise à jour en masse : {e}")
             return (0, len(liste_ids))
 
     def create_demande(self, data: Dict) -> Optional[int]:
@@ -110,6 +117,9 @@ class DemandesMixin:
         Returns:
             ID de la demande créée, ou None si erreur
         """
+        if self._refuser_si_pas_droit('creer_demande', "créer une demande"):
+            return None
+
         # Générer le conversation_id automatiquement
         conversation_id = self.generate_conversation_id()
 
@@ -153,11 +163,11 @@ class DemandesMixin:
                 id_demande = cursor.lastrowid
                 conn.commit()
 
-                print(f"✅ Demande créée - ID: {id_demande}, conversation_id: {conversation_id}")
+                logger.info(f"✅ Demande créée - ID: {id_demande}, conversation_id: {conversation_id}")
                 return id_demande
 
         except Exception as e:
-            print(f"❌ Erreur création demande : {e}")
+            logger.error(f"❌ Erreur création demande : {e}")
             return None
 
     def existe_email_dans_demande(self, id_demande, identifiant_mail_unique):
@@ -369,6 +379,7 @@ class DemandesMixin:
                 d.id_impact, d.id_urgence, d.priorite_calculee,
                 d.id_etat, d.date_traitement, d.solution_suite_a_donner,
                 d.commentaire,
+                d.updated_at,
                 c.libelle_canal, dom.libelle_domaine,
                 cat.libelle_categorie, sc.libelle_sous_categorie,
                 n.libelle_nature, i.libelle_impact, u.libelle_urgence,
@@ -396,7 +407,7 @@ class DemandesMixin:
                 'id_demande', 'libelle', 'sujet', 'resume', 'demandeur', 'date_reception',
                 'id_canal', 'id_domaine', 'id_responsable', 'id_categorie', 'id_sous_categorie',
                 'id_nature', 'id_impact', 'id_urgence', 'priorite_calculee', 'id_etat',
-                'date_traitement', 'solution_suite_a_donner', 'commentaire',
+                'date_traitement', 'solution_suite_a_donner', 'commentaire', 'updated_at',
                 'libelle_canal', 'libelle_domaine', 'libelle_categorie', 'libelle_sous_categorie',
                 'libelle_nature', 'libelle_impact', 'libelle_urgence', 'libelle_etat', 'responsable','conversation_id'
             ]
@@ -417,6 +428,8 @@ class DemandesMixin:
         """
         if not liste_ids or not data:
             return 0, 0
+        if self._refuser_si_pas_droit('gerer_masse', "modifier des demandes en masse"):
+            return 0, len(liste_ids)
 
         try:
             with self._get_connection() as (conn, cursor):
@@ -464,16 +477,25 @@ class DemandesMixin:
                 rows_affected = cursor.rowcount
                 conn.commit()
 
-                print(f"✅ Mise à jour en masse : {rows_affected} demandes modifiées en une seule requête SQL")
+                logger.info(f"✅ Mise à jour en masse : {rows_affected} demandes modifiées en une seule requête SQL")
 
                 return rows_affected, len(liste_ids) - rows_affected
 
         except Exception as e:
-            print(f"❌ Erreur mise à jour en masse : {e}")
+            logger.error(f"❌ Erreur mise à jour en masse : {e}")
             return 0, len(liste_ids)
 
-    def update_demande(self, id_demande: int, data: Dict) -> bool:
+    def update_demande(self, id_demande: int, data: Dict, expected_updated_at=NON_VERIFIE) -> bool:
+        """Met à jour une demande.
+
+        Verrou optimiste : si `expected_updated_at` est fourni (valeur `updated_at` lue au chargement de
+        la demande, éventuellement None), la mise à jour n'a lieu que si la ligne n'a pas changé depuis.
+        Sinon `ConflitModificationError` est levée (modifiée par un autre poste, ou supprimée).
+        Retourne False en cas d'erreur d'accès base (voir `last_error`).
+        """
         if not data:
+            return False
+        if self._refuser_si_pas_droit('gerer', "modifier une demande"):
             return False
 
         champs_mapping = {
@@ -513,4 +535,28 @@ class DemandesMixin:
             WHERE id_demande = ?
         """
         params.append(id_demande)
-        return self.execute_update(query, tuple(params))
+
+        if expected_updated_at is NON_VERIFIE:
+            return self.execute_update(query, tuple(params))
+
+        query += " AND updated_at IS ?"   # IS : comparaison correcte aussi quand updated_at est NULL
+        params.append(expected_updated_at)
+        try:
+            with self._get_connection() as (conn, cursor):
+                cursor.execute(query, tuple(params))
+                modifiees = cursor.rowcount
+                conn.commit()
+                if modifiees == 0:
+                    cursor.execute("SELECT 1 FROM demandes WHERE id_demande = ?", (id_demande,))
+                    existe = cursor.fetchone() is not None
+            self.last_error = None
+        except Exception as e:
+            self._record_error("UPDATE", query, e)
+            return False
+
+        if modifiees == 0:
+            raise ConflitModificationError(
+                "La demande a été modifiée par un autre utilisateur depuis son ouverture."
+                if existe else "La demande n'existe plus (supprimée par un autre utilisateur)."
+            )
+        return True

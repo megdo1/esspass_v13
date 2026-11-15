@@ -4,6 +4,10 @@ import re
 from openpyxl.utils import get_column_letter
 from shutil import copyfile
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 def export_oa_indicateurs(df_indicateurs: pd.DataFrame, trimestre: str, annee: int, infrapole: str,
                            chemin_export: str, chemin_modele: str) -> None:
@@ -15,7 +19,7 @@ def export_oa_indicateurs(df_indicateurs: pd.DataFrame, trimestre: str, annee: i
     # 2. Nettoyer l’infrapôle (retirer le mot "INFRAPOLE" insensible à la casse)
     infrapole_clean = re.sub(r'^(?i)infrap[oô]le[\s\u00A0]+', '', infrapole, flags=re.IGNORECASE).strip()
 
-    print(f"infrapôle {infrapole}, court: {infrapole_clean}", flush=True)
+    logger.info(f"infrapôle {infrapole}, court: {infrapole_clean}")
     # 3. Préparer les variables à remplacer
     valeurs_vars = {
         "[année]": str(annee),

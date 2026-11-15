@@ -3,6 +3,10 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class UsersMixin:
     """Utilisateurs, rôles et droits."""
@@ -47,7 +51,7 @@ class UsersMixin:
                 if user_result:
                     # L'utilisateur existe déjà
                     id_utilisateur = user_result[0]
-                    print(f"✅ Utilisateur existant trouvé : ID {id_utilisateur}")
+                    logger.info(f"✅ Utilisateur existant trouvé : ID {id_utilisateur}")
                     return id_utilisateur
                 else:
                     # Créer un nouvel utilisateur
@@ -58,12 +62,50 @@ class UsersMixin:
 
                     id_utilisateur = cursor.lastrowid
                     conn.commit()
-                    print(f"✨ Nouvel utilisateur créé : ID {id_utilisateur}")
+                    logger.info(f"✨ Nouvel utilisateur créé : ID {id_utilisateur}")
                     return id_utilisateur
 
         except Exception as e:
-            print(f"❌ Erreur lors de get_or_create_utilisateur : {e}")
+            logger.error(f"❌ Erreur lors de get_or_create_utilisateur : {e}")
             return None
+
+    def current_user_can(self, action: str) -> bool:
+        """True si le rôle de l'utilisateur connecté autorise `action` (matrice `utils.auth.PERMISSIONS`).
+
+        Échoue fermé : utilisateur inconnu, désactivé ou Outlook indisponible => refus.
+        """
+        from app.utils.auth import has_permission
+        return has_permission(self._role_courant(), action)
+
+    def _role_courant(self) -> Optional[str]:
+        """Rôle de l'utilisateur connecté, lu une seule fois par session (cache par instance).
+
+        Un changement de rôle ne s'applique qu'après redémarrage de l'application (comportement voulu :
+        évite une requête réseau par écriture, notamment pendant la collecte de mails). Seule une lecture
+        réussie est mise en cache : un échec (Outlook fermé, base momentanément inaccessible) est retenté.
+        """
+        role = getattr(self, "_role_cache", None)
+        if role is None:
+            user = self.get_current_user()
+            role = user.get('role') if user else None
+            if role:
+                self._role_cache = role
+        return role
+
+    def invalidate_role_cache(self) -> None:
+        """Oublie le rôle mis en cache (la prochaine vérification relira la base)."""
+        self._role_cache = None
+
+    def _refuser_si_pas_droit(self, action: str, libelle: str) -> bool:
+        """Contrôle d'autorisation côté données (l'UI seule ne suffit pas). True = refusé.
+
+        Renseigne `last_error` avec un message affichable à l'utilisateur.
+        """
+        if self.current_user_can(action):
+            return False
+        self.last_error = f"Droits insuffisants : votre rôle ne permet pas de {libelle}."
+        logger.warning("Action refusée (%s) : %s", action, self.last_error)
+        return True
 
     def is_current_user_admin(self) -> bool:
         """Vérifie si l'utilisateur connecté a le rôle Administrateur"""
@@ -93,7 +135,7 @@ class UsersMixin:
             return True
 
         except Exception as e:
-            print(f"Erreur vérification admin: {e}")
+            logger.error(f"Erreur vérification admin: {e}")
             return False
 
     def is_current_user_actif(self) -> bool:
@@ -121,7 +163,7 @@ class UsersMixin:
             return True
 
         except Exception as e:
-            print(f"Erreur vérification admin: {e}")
+            logger.error(f"Erreur vérification admin: {e}")
             return False
 
     def get_current_user(self) -> Dict[str, str]:
@@ -219,6 +261,9 @@ class UsersMixin:
         Returns:
             True si succès, False sinon
         """
+        if self._refuser_si_pas_droit('gerer_utilisateurs', "gérer les utilisateurs"):
+            return False
+
         query = '''
             UPDATE utilisateurs 
             SET nom = ?, prenom = ?, email = ?, id_role = ?, actif = ? 
@@ -228,7 +273,7 @@ class UsersMixin:
         success = self.execute_update(query, (nom, prenom, email, idrole, actif, idutilisateur))
 
         if success:
-            print(f"✓ Utilisateur {prenom} {nom} (ID: {idutilisateur}) mis à jour avec succès")
+            logger.info(f"✓ Utilisateur {prenom} {nom} (ID: {idutilisateur}) mis à jour avec succès")
 
         return success
 
@@ -255,7 +300,7 @@ class UsersMixin:
         if result and len(result) > 0:
             return result[0][0]
 
-        print(f"❌ Rôle '{libelle}' non trouvé")
+        logger.error(f"❌ Rôle '{libelle}' non trouvé")
         return None
 
     def get_user_by_credentials(self, nom: str = None, email: str = None) -> Optional[Dict]:
@@ -306,6 +351,9 @@ class UsersMixin:
         Returns:
             True si succès, False sinon
         """
+        if self._refuser_si_pas_droit('gerer_utilisateurs', "gérer les utilisateurs"):
+            return False
+
         query = """
             INSERT INTO utilisateurs (nom, prenom, email, id_role, actif, created_at)
             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -314,7 +362,7 @@ class UsersMixin:
         success = self._execute_update(query, (nom, prenom, email, id_role, actif))
 
         if success:
-            print(f"✅ Utilisateur créé : {prenom} {nom} ({email})")
+            logger.info(f"✅ Utilisateur créé : {prenom} {nom} ({email})")
 
         return success
 
@@ -361,11 +409,13 @@ class UsersMixin:
         Returns:
             True si succès, False sinon
         """
+        if self._refuser_si_pas_droit('gerer_utilisateurs', "gérer les utilisateurs"):
+            return False
         query = "UPDATE utilisateurs SET id_role = ? WHERE id_utilisateur = ?"
         success = self._execute_update(query, (id_role, id_utilisateur))
 
         if success:
-            print(f"✅ Rôle mis à jour pour l'utilisateur #{id_utilisateur}")
+            logger.info(f"✅ Rôle mis à jour pour l'utilisateur #{id_utilisateur}")
 
         return success
 
@@ -379,11 +429,13 @@ class UsersMixin:
         Returns:
             True si succès, False sinon
         """
+        if self._refuser_si_pas_droit('gerer_utilisateurs', "gérer les utilisateurs"):
+            return False
         query = "UPDATE utilisateurs SET actif = 1 WHERE id_utilisateur = ?"
         success = self._execute_update(query, (id_utilisateur,))
 
         if success:
-            print(f"✅ Utilisateur #{id_utilisateur} activé")
+            logger.info(f"✅ Utilisateur #{id_utilisateur} activé")
 
         return success
 
@@ -397,11 +449,13 @@ class UsersMixin:
         Returns:
             True si succès, False sinon
         """
+        if self._refuser_si_pas_droit('gerer_utilisateurs', "gérer les utilisateurs"):
+            return False
         query = "UPDATE utilisateurs SET actif = 0 WHERE id_utilisateur = ?"
         success = self._execute_update(query, (id_utilisateur,))
 
         if success:
-            print(f"✅ Utilisateur #{id_utilisateur} désactivé")
+            logger.info(f"✅ Utilisateur #{id_utilisateur} désactivé")
 
         return success
 
@@ -415,11 +469,13 @@ class UsersMixin:
         Returns:
             True si succès, False sinon
         """
+        if self._refuser_si_pas_droit('gerer_utilisateurs', "gérer les utilisateurs"):
+            return False
         query = "DELETE FROM utilisateurs WHERE id_utilisateur = ?"
         success = self._execute_update(query, (id_utilisateur,))
 
         if success:
-            print(f"⚠️ Utilisateur #{id_utilisateur} supprimé définitivement")
+            logger.warning(f"⚠️ Utilisateur #{id_utilisateur} supprimé définitivement")
 
         return success
 
@@ -454,13 +510,13 @@ class UsersMixin:
         """
         # Vérifier si l'email existe déjà
         if self.check_user_exists_by_email(email):
-            print(f"❌ Un utilisateur avec l'email {email} existe déjà")
+            logger.error(f"❌ Un utilisateur avec l'email {email} existe déjà")
             return False
 
         # Récupérer l'ID du rôle
         id_role = self.get_role_id_by_libelle(libelle_role)
         if not id_role:
-            print(f"❌ Le rôle '{libelle_role}' n'existe pas")
+            logger.error(f"❌ Le rôle '{libelle_role}' n'existe pas")
             return False
 
         # Créer l'utilisateur

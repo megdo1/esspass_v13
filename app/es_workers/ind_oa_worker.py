@@ -1,4 +1,8 @@
 from PyQt5.QtCore import QObject, pyqtSignal
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 
 class IndOACalcWorker(QObject):
@@ -18,9 +22,7 @@ class IndOACalcWorker(QObject):
             result = calcul_indicateurs_trimestriels(self.df, self.annee, self.trimestre, progress_callback=self.progress.emit)
 
         except Exception as e:
-            import traceback
-            print("KPI OA - Worker exception:", e)
-            print(traceback.format_exc())
+            logger.exception("KPI OA - Worker exception : %s", e)
             result = None
         self.finished.emit(result)
 

@@ -13,6 +13,10 @@ from PyQt5.QtCore import QUrl  # noqa: F401  (type des liens cliqués)
 from PyQt5.QtGui import QCursor, QDesktopServices
 from PyQt5.QtWidgets import QToolTip
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class MailDetailsDialog(QDialog):
     """Dialogue pour afficher les détails complets d'un mail"""
@@ -132,7 +136,7 @@ class MailDetailsDialog(QDialog):
                 pieces_jointes = self.datamanager.get_pieces_jointes_by_demande(id_demande)
                 # print(f"DEBUG: {len(pieces_jointes)} pièces jointes trouvées pour la demande {id_demande}")
             except Exception as e:
-                print(f"Erreur lors de la récupération des pièces jointes : {e}")
+                logger.error(f"Erreur lors de la récupération des pièces jointes : {e}")
 
         if pieces_jointes and len(pieces_jointes) > 0:
             pj_group = QGroupBox(f"📎 Pièces jointes ({len(pieces_jointes)})")
@@ -220,8 +224,15 @@ class MailDetailsDialog(QDialog):
             QPushButton:hover {
                 background-color: #1A4286;
             }
+            QPushButton:disabled {
+                background-color: #CBD5E0;
+                color: #718096;
+            }
         """)
         btn_modifier.clicked.connect(self.edit_demande)
+        if not self.datamanager.current_user_can('gerer'):
+            btn_modifier.setEnabled(False)
+            btn_modifier.setToolTip("Votre rôle ne permet pas de modifier une demande.")
 
         # Bouton "Fermer"
         btn_fermer = QPushButton("❌ Fermer")
@@ -278,7 +289,7 @@ class MailDetailsDialog(QDialog):
 
                     # Vérifier que le fichier existe
                     if not os.path.exists(chemin_fichier):
-                        print(f"⚠️ Image introuvable : {chemin_fichier}")
+                        logger.warning(f"⚠️ Image introuvable : {chemin_fichier}")
                         continue
 
                     # Remplacer toutes les occurrences de cid:
@@ -294,10 +305,10 @@ class MailDetailsDialog(QDialog):
                     for pattern, replacement in patterns:
                         html_content = html_content.replace(pattern, replacement)
 
-                    print(f"✅ Image remplacée : cid:{content_id_clean} -> {chemin_fichier}")
+                    logger.info(f"✅ Image remplacée : cid:{content_id_clean} -> {chemin_fichier}")
 
         except Exception as e:
-            print(f"❌ Erreur remplacement CID: {e}")
+            logger.error(f"❌ Erreur remplacement CID: {e}")
 
         return self.rendre_liens_images_visibles(html_content, noms_par_cid)
 
@@ -454,8 +465,7 @@ class MailDetailsDialog(QDialog):
             mail.Display()
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception("Erreur non gérée")
             show_error(self, "Erreur", f"Impossible d'ouvrir Outlook:\n{str(e)}")
 
     def edit_demande(self):
@@ -464,6 +474,9 @@ class MailDetailsDialog(QDialog):
 
         if not id_demande:
             show_warning(self, "Erreur", "Impossible de modifier : ID de demande introuvable.")
+            return
+        if not self.datamanager.current_user_can('gerer'):
+            show_warning(self, "Droits insuffisants", "Votre rôle ne permet pas de modifier une demande.")
             return
         if id_demande in self.parent.open_dialogs:
             # Si déjà ouverte, la remettre au premier plan

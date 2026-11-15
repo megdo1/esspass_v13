@@ -1,4 +1,8 @@
 from PyQt5.QtCore import QObject, pyqtSignal
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 
 class SectionStrCalcWorker(QObject):
@@ -20,9 +24,7 @@ class SectionStrCalcWorker(QObject):
             # result = calcul_tdb_section_structure(self.df, progress_callback=self.progress.emit)
             result = self.func(self.df, progress_callback=self.progress.emit)
         except Exception as e:
-            import traceback
-            print("Worker exception:", e, flush=True)
-            print(traceback.format_exc(), flush=True)
+            logger.exception("Worker exception : %s", e)
             result = None
         self.finished.emit(result)
 

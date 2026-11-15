@@ -1,9 +1,11 @@
 # Dépendances d'exécution ES-PASS (Windows uniquement : Outlook COM)
-PyQt5
-pandas
-numpy
-openpyxl
-matplotlib
-python-dateutil
-pywin32
-# Build : pip install pyinstaller
+# Versions validées : Python 3.9 (Anaconda) - ce sont celles de l'application livrée.
+# Ne les changer qu'en relançant les tests (pandas 2/3 modifie certains résultats, ex. UTM vide).
+PyQt5==5.15.11
+pandas==1.4.4
+numpy==1.21.5
+openpyxl==3.0.10
+matplotlib==3.5.2
+python-dateutil==2.8.2
+pywin32==302
+# Build : pip install pyinstaller==6.16.0

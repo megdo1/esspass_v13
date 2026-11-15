@@ -28,5 +28,13 @@ def setup_logging(level: int = None) -> str:
     root = logging.getLogger()
     root.setLevel(level)
     root.addHandler(handler)
+
+    # Console (si elle existe) : on retrouve les messages auparavant affichés par print().
+    # Exe PyInstaller sans console : sys.stderr vaut None, on s'en tient au fichier.
+    import sys
+    if sys.stderr is not None:
+        console = logging.StreamHandler(sys.stderr)
+        console.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s - %(message)s", "%H:%M:%S"))
+        root.addHandler(console)
     _CONFIGURED = True
     return log_path

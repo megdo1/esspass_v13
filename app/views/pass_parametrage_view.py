@@ -13,6 +13,10 @@ from app.data.data_config import CONFIG_FILE
 from app.utils.auth import has_permission
 from app.views.referentiels_tab import ReferentielsTab
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class ParametrageDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -342,7 +346,7 @@ class ParametrageDialog(QDialog):
         os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump({'sqlite_path': db_path}, f, indent=2)
-        print(f"Chemin BD sauvegardé : {db_path}")
+        logger.info(f"Chemin BD sauvegardé : {db_path}")
 
         # 2. Sauvegarder les autres paramètres dans la BD
         if self.data_manager:
@@ -410,7 +414,7 @@ class ParametrageDialog(QDialog):
     def save_colonnes_config(self):
         """Sauvegarde la configuration des colonnes via le data_manager"""
         if not self.data_manager:
-            print("⚠️ Data manager non disponible")
+            logger.warning("⚠️ Data manager non disponible")
             return False
         
         # Préparer les données pour l'update en bulk

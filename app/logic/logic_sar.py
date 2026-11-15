@@ -188,7 +188,7 @@ def calcul_sar_indicateurs(df, annee, trimestre_choisi, progress_callback=None):
                     ((df["Etat d'avancement"] == "Réalisée")
                         & (df["Date de réalisation"] >= debut_annee)
                         & (df["Date de réalisation"] <= fin_trim))
-                    or
+                    |
                     ((df["Etat d'avancement"] != "Réalisée")
                      & (df["Etat d'avancement"] != "Annulée"))
                   )

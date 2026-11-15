@@ -47,7 +47,7 @@ def get_current_user_from_outlook() -> Tuple[Optional[str], Optional[str]]:
         return username, email
 
     except Exception as e:
-        print(f"❌ Erreur lors de la récupération utilisateur : {e}")
+        logger.error(f"❌ Erreur lors de la récupération utilisateur : {e}")
         return None, None
 
 
@@ -65,6 +65,7 @@ PERMISSIONS = {
         'annuler': False,
         'mettre_a_jour': False,
         'gerer_listes': False,
+        'gerer_utilisateurs': False,
     },
     'Membre MCO': {
         'creer_demande': True,
@@ -78,6 +79,7 @@ PERMISSIONS = {
         'annuler': True,
         'mettre_a_jour': True,
         'gerer_listes': False,
+        'gerer_utilisateurs': False,
     },
     'Administrateur': {
         'creer_demande': True,
@@ -91,6 +93,7 @@ PERMISSIONS = {
         'annuler': True,
         'mettre_a_jour': True,
         'gerer_listes': True,
+        'gerer_utilisateurs': True,
     },
 }
 

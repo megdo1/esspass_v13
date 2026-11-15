@@ -15,6 +15,10 @@ from app.es_worker import SectionStrCalcWorker
 from app.dialogs.tdb_pat_str_graphdialog import PatStrGraphDialog
 from app.dialogs.tdb_pat_str_graph_activite_dialog import PatStrActiviteGraphDialog
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class TdbSectionPatStrView(QWidget):
     REQUIRED_COLS = [
@@ -22,7 +26,7 @@ class TdbSectionPatStrView(QWidget):
     ]
 
     def __init__(self, parent=None):
-        print("DEBUG: TdbSectionPatStrView - 0", flush=True)
+        logger.debug("DEBUG: TdbSectionPatStrView - 0")
         super().__init__(parent)
         self.df_source = None
         self.df_indicateurs = None

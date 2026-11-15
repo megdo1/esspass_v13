@@ -717,7 +717,7 @@ class SharedISMixin:
                         if index != -1:
                             self.combo_annee.setCurrentIndex(index)
                     except Exception as e:
-                        print(f"Erreur positionnement année courante : {e}")
+                        logger.error(f"Erreur positionnement année courante : {e}")
                 else:
                     self.combo_annee.setEnabled(False)
                     QMessageBox.warning(self, "Programme",

@@ -58,6 +58,7 @@ class TableMixin:
         limitDemandes = conf.get("demande_limit", "1000")
 
         # Charger avec filtres
+        erreurs_avant = self.data_manager.error_count
         demandes = self.data_manager.get_demandes(
             limit=int(limitDemandes),
             inclure_archivees=inclure_archivees,
@@ -65,8 +66,15 @@ class TableMixin:
             inclure_realisees=inclure_realisees
         )
 
+        if not demandes and self.data_manager.error_count > erreurs_avant:
+            # Erreur d'accès base (et non « aucun résultat ») : on garde le tableau affiché tel quel
+            show_error(self, "Chargement impossible",
+                       "Les demandes n'ont pas pu être chargées (base inaccessible ?).\n\n"
+                       f"{self.data_manager.last_error}\n\nLe tableau affiché n'est pas à jour.")
+            return self.table.rowCount()
+
         if not demandes:
-            print("⚠️ Aucune demande trouvée avec ces filtres")
+            logger.info("⚠️ Aucune demande trouvée avec ces filtres")
             self.table.setRowCount(0)
             self.update_info_label()
             return
@@ -197,7 +205,7 @@ class TableMixin:
         for col_idx, col_config in enumerate(colonnes_config):
             self.table.setColumnWidth(col_idx, col_config['largeur'])
 
-        print(f"✅ {len(demandes)} demandes chargées avec {len(colonnes_config)} colonnes")
+        logger.info(f"✅ {len(demandes)} demandes chargées avec {len(colonnes_config)} colonnes")
         # Définir la hauteur des lignes pour que les boutons soient visibles
         self.table.verticalHeader().setDefaultSectionSize(42)
 
@@ -261,7 +269,7 @@ class TableMixin:
     @busy_cursor_no_args
     def refresh_data(self):
         """Rafraîchit les données - VERSION OPTIMISÉE sans double lecture"""
-        print("Début de la mise à jour...")
+        logger.info("Début de la mise à jour...")
 
         conf = self.data_manager.get_all_parametres()
         outlook_folder = conf.get("outlook_folder", "PIGC")
@@ -348,8 +356,7 @@ class TableMixin:
 
             except Exception as e:
                 progress.close()
-                import traceback
-                traceback.print_exc()
+                logger.exception("Erreur non gérée")
                 show_error(
                     self,
                     "❌ Erreur de synchronisation",
@@ -357,6 +364,5 @@ class TableMixin:
                 )
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception("Erreur non gérée")
             show_error(self, "❌ Erreur", f"Erreur :\n\n{str(e)}")
