@@ -71,7 +71,6 @@ app/
   utils/                   Droits, chemins, journalisation
 config/                    Configuration locale (modèle fourni)
 ressources/                Icônes et images
-annomalie/                 Notes de livraison et requêtes SQL de rattrapage
 ```
 
 ## Base de données

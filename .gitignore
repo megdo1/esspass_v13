@@ -21,8 +21,7 @@ rapport_PASS_*.pdf
 rapport_PASS_*.xlsx
 
 # Données du client (captures d'écran des anomalies remontées)
-annomalie/*.png
-annomalie/*.jpg
+annomalie/
 
 # Archives et sauvegardes de travail (anciennes versions, code supprimé)
 _archive/
