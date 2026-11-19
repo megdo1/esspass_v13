@@ -4,84 +4,126 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButt
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 from app.styles import style
+from app.views.users.tabs_mixin import (
+    COL_EMAIL, COL_ID, COL_NOM, COL_PRENOM, COL_RESPONSABLE, COL_ROLE, COL_STATUT, INFOBULLE_TABLE_ABSENTE,
+    TEXTE_CASE_RESPONSABLE,
+)
+from app.views.users.widgets import (
+    ARDOISE, DANGER, PASTILLE_ROLE, ROLE_PASTILLE, SARCELLE, SUCCES, couleurs_pastille,
+)
 
 
 class ActionsMixin:
     """Chargement, filtrage et actions sur les utilisateurs (rôle, activation, suppression, création)."""
 
     def load_utilisateurs(self):
-        """Charge la liste des utilisateurs depuis la base de données"""
-
+        """Charge la liste des utilisateurs depuis la base de données et met à jour les tuiles de synthèse."""
         utilisateurs = self.data_manager.get_all_users_with_roles()
+        if not utilisateurs and self.data_manager.last_error:
+            return                                   # erreur d'accès : on garde l'affichage actuel
 
-        if utilisateurs:
-            self.tableau_utilisateurs.setRowCount(len(utilisateurs))
+        t = self.tableau_utilisateurs
+        t.setRowCount(len(utilisateurs))
+        for row, user in enumerate(utilisateurs):
+            role = user['libelle_role']
+            actif = bool(user['actif'])
+            est_responsable = user.get('est_responsable')
 
-            for row, user in enumerate(utilisateurs):
-                id_user = user['id_utilisateur']
-                nom = user['nom']
-                prenom = user['prenom']
-                email = user['email']
-                role = user['libelle_role']
-                actif = user['actif']
+            item_id = QTableWidgetItem(str(user['id_utilisateur']))
+            item_id.setTextAlignment(Qt.AlignCenter)
+            item_id.setForeground(QColor("#94A3B8"))
+            t.setItem(row, COL_ID, item_id)
+            t.setItem(row, COL_NOM, QTableWidgetItem(user['nom'] or ""))
+            t.setItem(row, COL_PRENOM, QTableWidgetItem(user['prenom'] or ""))
+            t.setItem(row, COL_EMAIL, QTableWidgetItem(user['email'] or ""))
 
-                # Colonne ID
-                item_id = QTableWidgetItem(str(id_user))
-                self.tableau_utilisateurs.setItem(row, 0, item_id)
+            # Rôle, statut et responsable : pastilles colorées (dessinées par PastilleDelegate)
+            item_role = QTableWidgetItem(role or "Non défini")
+            item_role.setTextAlignment(Qt.AlignCenter)
+            item_role.setData(ROLE_PASTILLE, couleurs_pastille(PASTILLE_ROLE.get(role, ARDOISE)))
+            t.setItem(row, COL_ROLE, item_role)
 
-                # Colonne Nom 
-                item_nom = QTableWidgetItem(f"{nom}")
-                self.tableau_utilisateurs.setItem(row, 1, item_nom)
-                
-                # Colonne prenom
-                item_preonom = QTableWidgetItem(f"{prenom}")
-                self.tableau_utilisateurs.setItem(row, 2, item_preonom)
+            item_statut = QTableWidgetItem("Actif" if actif else "Inactif")
+            item_statut.setTextAlignment(Qt.AlignCenter)
+            item_statut.setData(ROLE_PASTILLE, couleurs_pastille(SUCCES if actif else DANGER))
+            item_statut.setData(Qt.UserRole, actif)        # état réel, relu par la boîte de modification
+            t.setItem(row, COL_STATUT, item_statut)
 
-                # Colonne Email
-                item_email = QTableWidgetItem(email)
-                self.tableau_utilisateurs.setItem(row, 3, item_email)
+            if est_responsable is None:                    # table utilisateur_responsable absente
+                item_resp = QTableWidgetItem("n/a")
+                item_resp.setToolTip(INFOBULLE_TABLE_ABSENTE)
+                item_resp.setForeground(QColor("#94A3B8"))
+            elif est_responsable:
+                item_resp = QTableWidgetItem("Oui")
+                item_resp.setData(ROLE_PASTILLE, couleurs_pastille(SARCELLE))
+            else:
+                item_resp = QTableWidgetItem("—")
+                item_resp.setForeground(QColor("#94A3B8"))
+            item_resp.setTextAlignment(Qt.AlignCenter)
+            item_resp.setData(Qt.UserRole, None if est_responsable is None else bool(est_responsable))
+            t.setItem(row, COL_RESPONSABLE, item_resp)
 
-                # Colonne Rôle Actuel avec couleurs
-                item_role = QTableWidgetItem(role or "Non défini")
-                item_role.setFont(style.FONT_BOLD_11)
+        self._maj_synthese(utilisateurs)
+        self.filtrer_utilisateurs()
+        self._maj_boutons_actions()
 
-                if role == "Consultant":
-                    item_role.setBackground(QColor(style.COLOR_ROLE_CONSULTANT_BG))
-                    item_role.setForeground(QColor(style.COLOR_ROLE_CONSULTANT_TEXT))
-                elif role == "Membre MCO":
-                    item_role.setBackground(QColor(style.COLOR_ROLE_MCO_BG))
-                    item_role.setForeground(QColor(style.COLOR_ROLE_MCO_TEXT))
-                elif role == "Administrateur":
-                    item_role.setBackground(QColor(style.COLOR_ROLE_ADMIN_BG))
-                    item_role.setForeground(QColor(style.COLOR_ROLE_ADMIN_TEXT))
+    def _maj_synthese(self, utilisateurs):
+        """Met à jour les quatre tuiles : total, actifs, administrateurs actifs, responsables ES-PASS actifs."""
+        tuiles = getattr(self, 'tuiles_utilisateurs', None)
+        if not tuiles:
+            return
+        actifs = [u for u in utilisateurs if u['actif']]
+        tuiles["total"].setText(str(len(utilisateurs)))
+        tuiles["actifs"].setText(str(len(actifs)))
+        tuiles["admins"].setText(str(sum(1 for u in actifs if u['libelle_role'] == "Administrateur")))
+        if any(u.get('est_responsable') is not None for u in utilisateurs):
+            tuiles["responsables"].setText(str(sum(1 for u in actifs if u.get('est_responsable'))))
+        else:
+            tuiles["responsables"].setText("n/a")              # script 001 non appliqué
 
-                self.tableau_utilisateurs.setItem(row, 4, item_role)
+    def filtrer_utilisateurs(self, *_):
+        """Filtre la liste : texte (nom, prénom, e-mail) et filtres rôle / statut / responsable ES-PASS."""
+        t = self.tableau_utilisateurs
+        texte = self.search_input.text().strip().lower()
+        role = self.combo_filtre_role.currentData()
+        statut = self.combo_filtre_statut.currentData()
+        responsable = self.combo_filtre_responsable.currentData()
 
-                # Colonne Statut avec couleurs
-                statut_text = "✅ Actif" if actif else "❌ Inactif"
-                item_statut = QTableWidgetItem(statut_text)
-                item_statut.setTextAlignment(Qt.AlignCenter)
-                item_statut.setFont(style.FONT_BOLD_11)
+        visibles = 0
+        for row in range(t.rowCount()):
+            nom = t.item(row, COL_NOM).text().lower()
+            prenom = t.item(row, COL_PRENOM).text().lower()
+            email = t.item(row, COL_EMAIL).text().lower()
+            visible = (not texte or texte in nom or texte in prenom or texte in email
+                       or texte in f"{prenom} {nom}" or texte in f"{nom} {prenom}")
+            if visible and role is not None:
+                visible = t.item(row, COL_ROLE).text() == role
+            if visible and statut is not None:
+                visible = bool(t.item(row, COL_STATUT).data(Qt.UserRole)) == statut
+            if visible and responsable is not None:
+                visible = bool(t.item(row, COL_RESPONSABLE).data(Qt.UserRole)) == responsable
+            t.setRowHidden(row, not visible)
+            visibles += visible
 
-                if actif:
-                    item_statut.setBackground(QColor(style.COLOR_STATUT_ACTIF_BG))
-                    item_statut.setForeground(QColor(style.COLOR_STATUT_ACTIF_TEXT))
-                else:
-                    item_statut.setBackground(QColor(style.COLOR_STATUT_INACTIF_BG))
-                    item_statut.setForeground(QColor(style.COLOR_STATUT_INACTIF_TEXT))
+        if t.currentRow() >= 0 and t.isRowHidden(t.currentRow()):
+            t.clearSelection()
+            t.setCurrentCell(-1, -1)
+        self.lbl_compteur_utilisateurs.setText(f"{visibles} utilisateur(s) affiché(s) sur {t.rowCount()}")
 
-                self.tableau_utilisateurs.setItem(row, 5, item_statut)
+    def _maj_boutons_actions(self):
+        """Active les boutons selon la ligne sélectionnée (Activer / Désactiver selon le statut)."""
+        t = self.tableau_utilisateurs
+        ligne = t.currentRow() if t.selectedItems() else -1
+        selection = ligne >= 0
+        actif = selection and bool(t.item(ligne, COL_STATUT).data(Qt.UserRole))
+        self.btn_modifier.setEnabled(selection)
+        self.btn_supprimer.setEnabled(selection)
+        self.btn_activer.setEnabled(selection and not actif)
+        self.btn_desactiver.setEnabled(selection and actif)
 
-    def filtrer_utilisateurs(self):
-        """Filtre les utilisateurs en fonction de la recherche"""
-        filtre = self.search_input.text().lower()
-
-        for row in range(self.tableau_utilisateurs.rowCount()):
-            nom = self.tableau_utilisateurs.item(row, 1).text().lower()
-            email = self.tableau_utilisateurs.item(row, 2).text().lower()
-
-            visible = filtre in nom or filtre in email
-            self.tableau_utilisateurs.setRowHidden(row, not visible)
+    def _nom_complet_ligne(self, ligne) -> str:
+        t = self.tableau_utilisateurs
+        return f"{t.item(ligne, COL_NOM).text()} {t.item(ligne, COL_PRENOM).text()}".strip()
 
     def modifier_role_utilisateur(self):
         """Modifie le rôle de l'utilisateur sélectionné"""
@@ -92,7 +134,7 @@ class ActionsMixin:
             return
 
         id_user = int(self.tableau_utilisateurs.item(selected_row, 0).text())
-        nom_prenom = self.tableau_utilisateurs.item(selected_row, 1).text()
+        nom_prenom = self._nom_complet_ligne(selected_row)
 
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Modifier le rôle de {nom_prenom}")
@@ -150,14 +192,22 @@ class ActionsMixin:
         nom = self.tableau_utilisateurs.item(selectedrow, 1).text()
         prenom = self.tableau_utilisateurs.item(selectedrow, 2).text()
         email = self.tableau_utilisateurs.item(selectedrow, 3).text()
-        role_actuel = self.tableau_utilisateurs.item(selectedrow, 4).text()
+        role_actuel = self.tableau_utilisateurs.item(selectedrow, COL_ROLE).text()
 
         # Créer le dialogue de modification
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Modifier l'utilisateur {nom} {prenom}")
-        dialog.setMinimumSize(450, 400)
+        dialog.setMinimumSize(520, 460)
 
         layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(12)
+        titre_dialogue = QLabel("Modifier l'utilisateur")
+        titre_dialogue.setStyleSheet("font-size: 16px; font-weight: 700; color: #0F2A52;")
+        layout.addWidget(titre_dialogue)
+        sous_titre = QLabel(f"{nom} {prenom} — {email}")
+        sous_titre.setStyleSheet("color: #64748B;")
+        layout.addWidget(sous_titre)
 
         # Groupe Informations utilisateur
         formgroup = QGroupBox("Informations de l'utilisateur")
@@ -207,9 +257,21 @@ class ActionsMixin:
         # Checkbox Actif
         checkactif = QCheckBox("Utilisateur actif")
         checkactif.setStyleSheet(style.CHECKBOX_STYLE)
-        statut_actuel = self.tableau_utilisateurs.item(selectedrow, 5).text()
-        checkactif.setChecked(statut_actuel == "Actif")
+        # L'état vient des données de la cellule : le texte affiché (« ✅ Actif ») ne vaut jamais « Actif »,
+        # ce qui décochait la case et désactivait l'utilisateur à chaque modification.
+        checkactif.setChecked(bool(self.tableau_utilisateurs.item(selectedrow, 5).data(Qt.UserRole)))
         formlayout.addRow("Statut :", checkactif)
+
+        # Case Responsable ES-PASS (grisée si la table utilisateur_responsable n'existe pas)
+        responsable_actuel = self.tableau_utilisateurs.item(selectedrow, 6).data(Qt.UserRole)
+        checkresp = QCheckBox(TEXTE_CASE_RESPONSABLE)
+        checkresp.setStyleSheet(style.CHECKBOX_STYLE)
+        if responsable_actuel is None:
+            checkresp.setEnabled(False)
+            checkresp.setToolTip(INFOBULLE_TABLE_ABSENTE)
+        else:
+            checkresp.setChecked(bool(responsable_actuel))
+        formlayout.addRow("Responsable :", checkresp)
 
         formgroup.setLayout(formlayout)
         layout.addWidget(formgroup)
@@ -221,9 +283,11 @@ class ActionsMixin:
 
         btnvalider.clicked.connect(dialog.accept)
         btnannuler.clicked.connect(dialog.reject)
+        btnvalider.setStyleSheet(style.BUTTON_PRIMAIRE_STYLE)
 
-        btnlayout.addWidget(btnvalider)
+        btnlayout.addStretch()
         btnlayout.addWidget(btnannuler)
+        btnlayout.addWidget(btnvalider)
         layout.addLayout(btnlayout)
 
         # Afficher le dialogue
@@ -269,11 +333,27 @@ class ActionsMixin:
             )
 
             if success:
-                QMessageBox.information(self, "Succès",
-                                        f"L'utilisateur {nouveau_nom} {nouveau_prenom} a été modifié avec succès.")
+                message = f"L'utilisateur {nouveau_nom} {nouveau_prenom} a été modifié avec succès."
+                message += self._appliquer_statut_responsable(iduser, responsable_actuel, checkresp.isChecked())
+                QMessageBox.information(self, "Succès", message)
                 self.load_utilisateurs()
             else:
                 QMessageBox.critical(self, "Erreur", "Erreur lors de la modification de l'utilisateur.")
+
+    def _appliquer_statut_responsable(self, id_user, etat_actuel, souhaite) -> str:
+        """Enregistre « Responsable ES-PASS » s'il a changé ; retourne un complément pour le message de succès."""
+        if etat_actuel is None or bool(etat_actuel) == bool(souhaite):
+            return ""
+        if not self.data_manager.definir_responsable(id_user, souhaite):
+            QMessageBox.warning(self, "Responsable ES-PASS non modifié",
+                                "Les informations sont enregistrées, mais le statut « Responsable ES-PASS » "
+                                f"n'a pas pu être modifié :\n{self.data_manager.last_error}")
+            return ""
+        if souhaite:
+            return "\n\n✅ Désormais responsable ES-PASS : proposé dans les listes « Responsable »."
+        nb = self.data_manager.get_nb_demandes_affectees(id_user)
+        return ("\n\nN'est plus responsable ES-PASS : il n'est plus proposé dans les listes."
+                + (f"\nLes {nb} demande(s) qui lui sont déjà affectées le restent." if nb else ""))
 
     def activer_utilisateur(self):
         """Active l'utilisateur sélectionné"""
@@ -284,7 +364,7 @@ class ActionsMixin:
             return
 
         id_user = int(self.tableau_utilisateurs.item(selected_row, 0).text())
-        nom_prenom = self.tableau_utilisateurs.item(selected_row, 1).text()
+        nom_prenom = self._nom_complet_ligne(selected_row)
 
         self.data_manager.activate_user(id_user)
 
@@ -300,7 +380,7 @@ class ActionsMixin:
             return
 
         id_user = int(self.tableau_utilisateurs.item(selected_row, 0).text())
-        nom_prenom = self.tableau_utilisateurs.item(selected_row, 1).text()
+        nom_prenom = self._nom_complet_ligne(selected_row)
 
 
         msgbox = QMessageBox(self)
@@ -332,7 +412,7 @@ class ActionsMixin:
             return
 
         id_user = int(self.tableau_utilisateurs.item(selected_row, 0).text())
-        nom_prenom = self.tableau_utilisateurs.item(selected_row, 1).text()
+        nom_prenom = self._nom_complet_ligne(selected_row)
 
 
         msgbox = QMessageBox(self)
@@ -386,9 +466,18 @@ class ActionsMixin:
 
 
         if self.data_manager.create_user_with_role(nom, prenom, email, id_role, actif):
+            complement = ""
+            if self.check_responsable.isChecked() and self.check_responsable.isEnabled():
+                id_cree = self.data_manager.get_id_utilisateur_par_email(email)
+                if id_cree and self.data_manager.definir_responsable(id_cree, True):
+                    complement = "\nResponsable ES-PASS : oui"
+                else:
+                    QMessageBox.warning(self, "Responsable ES-PASS non enregistré",
+                                        "L'utilisateur est créé, mais le statut « Responsable ES-PASS » n'a pas pu "
+                                        f"être enregistré :\n{self.data_manager.last_error}")
             QMessageBox.information(
                 self, "Succès",
-                f"✅ Utilisateur {nom} {prenom} créé avec succès\nRôle : {role}"
+                f"✅ Utilisateur {nom} {prenom} créé avec succès\nRôle : {role}{complement}"
             )
             self.reinitialiser_form()
             self.load_utilisateurs()
@@ -402,3 +491,4 @@ class ActionsMixin:
         self.input_email.clear()
         self.combo_role_new.setCurrentIndex(0)
         self.check_actif.setChecked(True)
+        self.check_responsable.setChecked(False)

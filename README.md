@@ -75,6 +75,7 @@ ressources/                Icônes et images
 
 ## Base de données
 
+- Les évolutions de structure de la base sont fournies sous forme de **scripts SQL** dans `scripts/sql/` (à exécuter manuellement, avec retour arrière) : voir `scripts/sql/README.md`.
 - SQLite utilisé sur **partage réseau** : pas de mode WAL, écritures sécurisées (`synchronous=FULL`) et délai d'attente de 15 s en cas d'accès simultané.
 - Le programme ne modifie pas la structure de la base : aucune migration n'est appliquée au démarrage.
 - Les états des demandes, les impacts et les urgences sont fixés par l'application (libellés utilisés par le calcul de priorité et les rapports).

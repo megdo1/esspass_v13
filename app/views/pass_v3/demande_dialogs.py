@@ -140,7 +140,7 @@ class EditDemandeDialog(QDialog):
         layout.addRow("Domaine :", self.combo_domaine)
         self.combo_responsable = NoScrollComboBox()
         self.combo_responsable.addItem("", None)
-        users = self.data_manager.get_all_users()
+        users = self.data_manager.get_responsables()
         for user in users:
             self.combo_responsable.addItem(user['nom_complet'], user['id'])
         self.set_combo_value(self.combo_responsable, self.demande_data.get('id_responsable'))
@@ -470,7 +470,7 @@ class CreateDemandeDialog(QDialog):
         layout.addRow("Domaine :", self.combo_domaine)
         self.combo_responsable = NoScrollComboBox()
         self.combo_responsable.addItem("", None)
-        users = self.data_manager.get_all_users()
+        users = self.data_manager.get_responsables()
         for user in users:
             self.combo_responsable.addItem(user['nom_complet'], user['id'])
         layout.addRow("Responsable :", self.combo_responsable)
@@ -770,7 +770,7 @@ class DuplicateDemandeDialog(QDialog):
         # Responsable
         self.combo_responsable = QComboBox()
         self.combo_responsable.addItem("", None)
-        users = self.data_manager.get_all_users()
+        users = self.data_manager.get_responsables()
         for user in users:
             self.combo_responsable.addItem(user['nom_complet'], user['id'])
         self.set_combo_value(self.combo_responsable, self.demande_data.get('id_responsable'))

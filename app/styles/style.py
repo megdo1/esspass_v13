@@ -24,6 +24,53 @@ TAB_LABEL_STYLE = """
 # ========== STYLES BOUTONS ==========
 BUTTON_CLOSE_STYLE = "padding: 10px 20px;"
 
+# Bouton d'action principal (plein) et bouton destructif (contour rouge) : mêmes teintes que le reste de l'application
+BUTTON_PRIMAIRE_STYLE = """
+    QPushButton { background: #1F4E9C; color: #FFFFFF; border: 1px solid #1F4E9C; }
+    QPushButton:hover { background: #1A4286; border-color: #1A4286; }
+    QPushButton:pressed { background: #143468; }
+    QPushButton:disabled { background: #E2E8F0; color: #94A3B8; border-color: #E2E8F0; }
+"""
+
+BUTTON_DANGER_STYLE = """
+    QPushButton { background: #FFFFFF; color: #C53030; border: 1px solid #C53030; }
+    QPushButton:hover { background: #FDECEC; border-color: #9B2C2C; color: #9B2C2C; }
+    QPushButton:pressed { background: #F8CFCF; }
+    QPushButton:disabled { background: #F8FAFC; color: #94A3B8; border-color: #CBD5E1; }
+"""
+
+# Cellules du tableau des utilisateurs : même marge à l'état normal et sélectionné (sans cela, le texte d'une
+# ligne sélectionnée est décalé). Pas de `border` sur ::item : cela casserait le retour à la ligne.
+TABLE_ITEM_STYLE = """
+    QTableWidget::item { padding: 0px; }
+    QTableWidget::item:selected { padding: 0px; background-color: #DBEAFE; color: #0F172A; }
+"""
+
+# Onglets : identiques à ceux de l'écran de configuration
+TABS_STYLE = """
+    QTabWidget::pane {
+        border: 1px solid #CBD5E1;
+        border-radius: 4px;
+        background: white;
+    }
+    QTabBar::tab {
+        background: #F4F6FA;
+        border: 1px solid #CBD5E1;
+        padding: 8px 20px;
+        min-width: 170px;
+        margin-right: 2px;
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+    }
+    QTabBar::tab:selected {
+        background: white;
+        border-bottom-color: white;
+    }
+    QTabBar::tab:hover {
+        background: #E2E8F0;
+    }
+"""
+
 BUTTON_MODIFIER_STYLE = """
     background: #1F4E9C;
     color: white;

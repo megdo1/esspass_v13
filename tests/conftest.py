@@ -19,7 +19,17 @@ REF_TABLES = {
 }
 
 
-def _creer_schema(conn):
+SCRIPT_RESPONSABLES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                   "scripts", "sql", "001_utilisateur_responsable.sql")
+SCRIPT_RESPONSABLES_RETOUR = SCRIPT_RESPONSABLES.replace(".sql", "_rollback.sql")
+
+
+def executer_script(conn, chemin):
+    with open(chemin, encoding="utf8") as f:
+        conn.executescript(f.read())
+
+
+def _creer_schema(conn, avec_table_responsables=True):
     for table, (id_col, lib_col) in REF_TABLES.items():
         conn.execute(f"CREATE TABLE {table} ({id_col} INTEGER PRIMARY KEY, {lib_col} TEXT, actif INTEGER DEFAULT 1)")
         conn.execute(f"INSERT INTO {table} ({lib_col}) VALUES ('A'), ('B')")
@@ -27,8 +37,7 @@ def _creer_schema(conn):
                     libelle_sous_categorie TEXT, id_categorie INTEGER, actif INTEGER DEFAULT 1)""")
     conn.execute("INSERT INTO sous_categories (libelle_sous_categorie, id_categorie) VALUES ('SC1', 1)")
     conn.execute("""CREATE TABLE utilisateurs (id_utilisateur INTEGER PRIMARY KEY, nom TEXT, prenom TEXT,
-                    email TEXT, id_role INTEGER, actif INTEGER DEFAULT 1, created_at TEXT,
-                    windows_login TEXT)""")
+                    email TEXT, id_role INTEGER, actif INTEGER DEFAULT 1, created_at TEXT)""")
     conn.execute("CREATE TABLE roles (id_role INTEGER PRIMARY KEY, libelle_role TEXT)")
     conn.execute("INSERT INTO roles (id_role, libelle_role) VALUES (1, 'Consultant'), (2, 'Membre MCO'), (3, 'Administrateur')")
     conn.execute("INSERT INTO utilisateurs (nom, prenom, email, id_role) VALUES ('Dupont', 'Jean', 'j@x.fr', 1)")
@@ -50,6 +59,8 @@ def _creer_schema(conn):
                     tronquer_longueur INTEGER, type_colonne TEXT, id_utilisateur INTEGER)""")
     conn.execute("""CREATE TABLE parametres_app (cle TEXT PRIMARY KEY, valeur TEXT, description TEXT,
                     type_valeur TEXT, id_utilisateur INTEGER)""")
+    if avec_table_responsables:
+        executer_script(conn, SCRIPT_RESPONSABLES)
 
 
 @pytest.fixture

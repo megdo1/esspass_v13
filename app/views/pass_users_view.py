@@ -6,7 +6,6 @@ Fichier: app/views/pass_parametrage_view.py
 
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QTabWidget
 
-from PyQt5.QtCore import Qt
 from app.data.data_manager import DataManager
 from app.data.data_manager import get_windows_user_info
 from app.styles import style
@@ -98,33 +97,31 @@ class GestionUtilisateursDialog(TabsMixin, ActionsMixin, QDialog):
     def init_ui(self):
         """Initialise l'interface utilisateur"""
         main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(24, 20, 24, 20)
+        main_layout.setSpacing(14)
 
-        title_label = QLabel("👥 GESTION DES UTILISATEURS ET RÔLES")
-        title_label.setStyleSheet(style.TITLE_STYLE)
-        title_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title_label)
+        # --- en-tête : titre, sous-titre
+        titre = QLabel("Gestion des utilisateurs")
+        titre.setStyleSheet("font-size: 22px; font-weight: 700; color: #0F2A52;")
+        sous_titre = QLabel("Comptes, rôles, accès et responsables ES-PASS")
+        sous_titre.setStyleSheet("font-size: 13px; color: #64748B;")
+        main_layout.addWidget(titre)
+        main_layout.addWidget(sous_titre)
 
+        # --- tuiles de synthèse (mêmes que l'écran Demandes)
+        self.create_zone_synthese(main_layout)
+
+        # --- onglets (même habillage que l'écran de configuration)
         tabs = QTabWidget()
+        tabs.setStyleSheet(style.TABS_STYLE)
+        tabs.addTab(self.create_tab_utilisateurs(), "📋 Liste des utilisateurs")
+        tabs.addTab(self.create_tab_creer_utilisateur(), "➕ Créer un utilisateur")
+        tabs.addTab(self.create_tab_matrice_droits(), "🔐 Matrice des droits")
+        main_layout.addWidget(tabs, 1)
 
-        tab_utilisateurs = self.create_tab_utilisateurs()
-        tabs.addTab(tab_utilisateurs, "📋 Liste des utilisateurs")
-
-        tab_creer = self.create_tab_creer_utilisateur()
-        tabs.addTab(tab_creer, "➕ Créer un utilisateur")
-
-        tab_matrice = self.create_tab_matrice_droits()
-        tabs.addTab(tab_matrice, "🔐 Matrice des droits")
-
-        main_layout.addWidget(tabs)
-
-        buttons_layout = QHBoxLayout()
-        buttons_layout.addStretch()
-
-        btn_close = QPushButton("❌ Fermer")
-        btn_close.setStyleSheet(style.BUTTON_CLOSE_STYLE)
+        pied = QHBoxLayout()
+        pied.addStretch()
+        btn_close = QPushButton("Fermer")
         btn_close.clicked.connect(self.accept)
-        buttons_layout.addWidget(btn_close)
-
-        main_layout.addLayout(buttons_layout)
-
-
+        pied.addWidget(btn_close)
+        main_layout.addLayout(pied)

@@ -221,16 +221,16 @@ class UsersMixin:
             return None
 
     def get_all_users(self) -> List[Dict]:
-        """Récupère les utilisateurs actifs proposés comme responsables (listes des dialogues de demandes).
+        """Récupère tous les utilisateurs actifs.
 
-        Seuls les comptes sans windows_login (colonne `windows_login` IS NULL) sont retournés.
+        Les listes « Responsable » des demandes n'utilisent plus cette méthode mais `get_responsables`
+        (utilisateurs cochés « Responsable ES-PASS »).
         """
         query = """
             SELECT u.id_utilisateur, u.nom, u.prenom, r.libelle_role
             FROM utilisateurs u
             JOIN roles r ON u.id_role = r.id_role
             WHERE u.actif = 1
-              AND u.windows_login IS NULL
             ORDER BY u.nom, u.prenom
         """
 
@@ -377,10 +377,17 @@ class UsersMixin:
         Returns:
             Liste de dictionnaires avec les informations utilisateurs
         """
-        query = """
-            SELECT u.id_utilisateur, u.nom, u.prenom, u.email, r.libelle_role, u.actif
+        # est_responsable : 1/0 si la table utilisateur_responsable existe, sinon None (fonction indisponible)
+        if self.table_responsables_existe():
+            responsable = "CASE WHEN ur.id_utilisateur IS NULL THEN 0 ELSE 1 END"
+            jointure = f"LEFT JOIN {self.TABLE_RESPONSABLES} ur ON ur.id_utilisateur = u.id_utilisateur"
+        else:
+            responsable, jointure = "NULL", ""
+        query = f"""
+            SELECT u.id_utilisateur, u.nom, u.prenom, u.email, r.libelle_role, u.actif, {responsable}
             FROM utilisateurs u
             LEFT JOIN roles r ON u.id_role = r.id_role
+            {jointure}
             ORDER BY u.nom, u.prenom
         """
 
@@ -395,6 +402,7 @@ class UsersMixin:
                     'email': row[3],
                     'libelle_role': row[4],
                     'actif': row[5],
+                    'est_responsable': row[6],
                     'nom_complet': f"{row[1]} {row[2]}"
                 }
                 for row in results
@@ -480,6 +488,11 @@ class UsersMixin:
 
         if success:
             logger.warning(f"⚠️ Utilisateur #{id_utilisateur} supprimé définitivement")
+            # Un identifiant réutilisé ne doit pas hériter d'un ancien statut de responsable
+            # (le trigger du script 001 le fait aussi ; ceci couvre une base sans trigger).
+            if self.table_responsables_existe():
+                self._execute_update(f"DELETE FROM {self.TABLE_RESPONSABLES} WHERE id_utilisateur = ?",
+                                     (id_utilisateur,))
 
         return success
 

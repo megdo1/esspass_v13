@@ -502,7 +502,7 @@ class GererMasseDialog(QDialog):
 
         self.combo_responsable = NoScrollComboBox()
         self.combo_responsable.addItem("(Choisir une valeur)", None)
-        users = self.data_manager.get_all_users()
+        users = self.data_manager.get_responsables()
         for user in users:
             self.combo_responsable.addItem(user['nom_complet'], user['id'])
         layout_classif.addRow("Responsable :", self.combo_responsable)

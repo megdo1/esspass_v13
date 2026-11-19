@@ -28,6 +28,7 @@ from app.data.mixins.users_mixin import UsersMixin
 from app.data.mixins.demandes_mixin import DemandesMixin
 from app.data.mixins.collecte_mixin import CollecteMixin
 from app.data.mixins.stats_mixin import StatsMixin
+from app.data.mixins.responsables_mixin import ResponsablesMixin
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,8 @@ def get_windows_user_info():
         }
 
 
-class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersMixin, DemandesMixin, CollecteMixin, StatsMixin):
+class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersMixin, ResponsablesMixin, DemandesMixin,
+                  CollecteMixin, StatsMixin):
     """
     Gestionnaire centralisé pour tous les accès à la base de données SQLite
     """
