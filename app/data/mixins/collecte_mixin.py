@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import logging
+from app.data.sql_utils import sql_nom_utilisateur_ou_repere
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +43,10 @@ class CollecteMixin:
 
     def get_last_collecte(self) -> Dict[str, any]:
         """Récupère les informations de la dernière collecte"""
-        query = """
+        query = f"""
             SELECT 
                 mc.date_collecte,
-                u.nom || ' ' || u.prenom as lanceur,
+                {sql_nom_utilisateur_ou_repere('u', 'mc.id_utilisateur_lanceur')} as lanceur,
                 mc.nb_nouvelles_demandes,
                 mc.nb_total_demandes
             FROM metadonnees_collecte mc

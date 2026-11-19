@@ -24,6 +24,7 @@ ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
+from app.data.errors import DatabaseError
 from app.ui_infodialog import InfoDialog
 from app.ui_mainwindow_v3 import MainWindow
 from app.utils.logging_setup import setup_logging
@@ -40,7 +41,12 @@ def exception_hook(exctype, value, tb):
     msg = QMessageBox()
     msg.setIcon(QMessageBox.Critical)
     msg.setWindowTitle("❌ Erreur Critique")
-    msg.setText(f"Une erreur critique s'est produite :\n\n{exctype.__name__}: {value}")
+    if issubclass(exctype, DatabaseError):
+        msg.setText("La base de données est momentanément inaccessible (réseau coupé ou base occupée "
+                    "par un autre poste).\n\nMerci de patienter quelques instants puis de relancer "
+                    f"l'application.\n\nDétail : {value}")
+    else:
+        msg.setText(f"Une erreur critique s'est produite :\n\n{exctype.__name__}: {value}")
     msg.setDetailedText(error_msg)
     msg.setStandardButtons(QMessageBox.Ok)
     msg.exec_()

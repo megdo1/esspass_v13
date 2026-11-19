@@ -38,8 +38,8 @@ class PermissionsMixin:
 
             if result:
                 role = result[0][0]
-                logger.info(f"✅ Nom : {nom_complet}")
-                logger.info(f"✅ Rôle de l'utilisateur: {role}")
+                logger.debug(f"✅ Nom : {nom_complet}")
+                logger.debug(f"✅ Rôle de l'utilisateur: {role}")
                 return role
 
             logger.error(f"❌ Aucun rôle trouvé pour l'utilisateur")
@@ -70,12 +70,12 @@ class PermissionsMixin:
         can_cancel = has_permission(user_role, 'annuler')
         can_update = has_permission(user_role, 'mettre_a_jour')
 
-        logger.info(f"\n{'=' * 80}")
-        logger.info(f"🎛️ MISE À JOUR DE TOUS LES BOUTONS - Rôle: {user_role}")
-        logger.info(f"{'=' * 80}")
+        logger.debug(f"\n{'=' * 80}")
+        logger.debug(f"🎛️ MISE À JOUR DE TOUS LES BOUTONS - Rôle: {user_role}")
+        logger.debug(f"{'=' * 80}")
 
         # ========== BOUTONS GLOBAUX ==========
-        logger.info(f"\n📋 BOUTONS GLOBAUX :")
+        logger.debug(f"\n📋 BOUTONS GLOBAUX :")
 
         # Nouvelle demande
         if hasattr(self, 'btn_nouvelle_demande'):
@@ -127,7 +127,7 @@ class PermissionsMixin:
 
         # ========== BOUTONS UNITAIRES (dans le tableau) ==========
         if hasattr(self, 'unit_buttons'):
-            logger.info(f"\n📋 BOUTONS UNITAIRES (dans le tableau) :")
+            logger.debug(f"\n📋 BOUTONS UNITAIRES (dans le tableau) :")
 
             # Dupliquer
             if 'dupliquer' in self.unit_buttons:
@@ -168,7 +168,7 @@ class PermissionsMixin:
                 logger.debug(
                     f"  📦 Archiver ({len(self.unit_buttons['archiver'])} btn) : {'✅ ACTIF' if can_archive else '❌ GRISÉ'}")
 
-        logger.info(f"{'=' * 80}\n")
+        logger.debug(f"{'=' * 80}\n")
 
     def _update_button_style(self, button, is_enabled):
         """Change UNIQUEMENT la couleur de background si inactif"""

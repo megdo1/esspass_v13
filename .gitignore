@@ -38,3 +38,4 @@ CLAUDE.md
 # Binaires générés (jamais versionnés : livrés hors dépôt)
 *.exe
 dist/
+erreur_client/

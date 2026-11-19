@@ -81,7 +81,7 @@ ressources/                Icônes et images
 
 ## Packaging
 
-Génération d'un exécutable avec PyInstaller (`pip install pyinstaller`). Veillez à inclure dans le build les ressources non Python : `app/styles/` (feuille de style et icônes) et `ressources/`.
+Génération de l'exécutable unique avec PyInstaller : `.\build_exe.ps1` (voir les prérequis en tête du script). Il inclut les ressources non Python (`app/styles/`, `ressources/`) et l'import `win32timezone`, **indispensable** à la collecte des mails Outlook (sans lui : « No module named 'win32timezone' »).
 
 ## Données sensibles
 

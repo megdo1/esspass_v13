@@ -80,45 +80,6 @@ def extraire_metadata_email(msg):
     }
 
 
-def traiter_images_inline(msg, id_demande, data_manager, pj_path):
-    """Extrait les images inline (embedded) du HTML"""
-    nb_images = 0
-
-    if msg.Attachments.Count == 0:
-        return nb_images
-
-    for i in range(1, msg.Attachments.Count + 1):
-        attachment = msg.Attachments.Item(i)
-
-        try:
-            # Vérifier si c'est une image inline
-            content_id = attachment.PropertyAccessor.GetProperty(
-                "http://schemas.microsoft.com/mapi/proptag/0x3712001F"
-            )
-
-            if content_id:  # C'est une image inline
-                nom_fichier = attachment.FileName
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                nom_unique = f"{id_demande}_inline_{timestamp}_{nom_fichier}"
-                chemin_complet = os.path.join(pj_path, nom_unique)
-
-                attachment.SaveAsFile(chemin_complet)
-                taille_fichier = os.path.getsize(chemin_complet)
-
-                # Sauvegarder avec le Content-ID pour référence
-                if data_manager.ajouter_image_inline(
-                        id_demande, nom_fichier, nom_unique,
-                        taille_fichier, content_id
-                ):
-                    nb_images += 1
-
-        except Exception as e:
-            logging.error(f"Erreur extraction image inline: {e}")
-            continue
-
-    return nb_images
-
-
 def rechercher_demande_existante(data_manager, metadata):
     if metadata['in_reply_to'] or metadata['email_references_str']:
         all_refs = []
@@ -314,7 +275,6 @@ def traiter_email(msg, data_manager, id_collecte, id_canal, id_etat, pj_path):
 
         if id_demande:
             stats['nb_pj'] = traiter_pieces_jointes(msg, id_demande, data_manager, pj_path)
-            stats['nb_images'] = traiter_images_inline(msg, id_demande, data_manager, pj_path)
 
         # Ne pas marquer comme lu
         # msg.UnRead = False

@@ -305,7 +305,7 @@ class MailDetailsDialog(QDialog):
                     for pattern, replacement in patterns:
                         html_content = html_content.replace(pattern, replacement)
 
-                    logger.info(f"✅ Image remplacée : cid:{content_id_clean} -> {chemin_fichier}")
+                    logger.debug(f"✅ Image remplacée : cid:{content_id_clean} -> {chemin_fichier}")
 
         except Exception as e:
             logger.error(f"❌ Erreur remplacement CID: {e}")

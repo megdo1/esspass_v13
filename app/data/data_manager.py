@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple
 from contextlib import contextmanager
 import logging
 import os
+import time
 
 import getpass
 import weakref
@@ -127,7 +128,27 @@ class DataManager(ConfigMixin, ReferentielsMixin, ReferentielsAdminMixin, UsersM
         self.sous_categories_id_mapping = {}
         self.sous_categories_ids_by_categorie = {}
         DataManager._instances.add(self)
-        self._load_reference_data()
+        self._charger_donnees_reference_avec_reprises()
+
+    # Reprises au démarrage : un verrou de la base (autre poste en écriture, antivirus, synchro...) est
+    # en général passager ; sans reprise, l'application s'arrêtait au premier « database is locked ».
+    TENTATIVES_DEMARRAGE = 3
+    PAUSE_ENTRE_TENTATIVES = 3.0   # secondes (s'ajoute au busy_timeout de 15 s de chaque requête)
+
+    def _charger_donnees_reference_avec_reprises(self) -> None:
+        for tentative in range(1, self.TENTATIVES_DEMARRAGE + 1):
+            for cache in (self.liste_valeurs, self.id_mapping, self.sous_categories_by_categorie,
+                          self.sous_categories_id_mapping, self.sous_categories_ids_by_categorie):
+                cache.clear()          # un échec partiel ne doit pas laisser des listes à moitié remplies
+            try:
+                self._load_reference_data()
+                return
+            except DatabaseError:
+                if tentative == self.TENTATIVES_DEMARRAGE:
+                    raise
+                logger.warning("Chargement des listes impossible (tentative %d/%d), nouvel essai dans %.0f s",
+                               tentative, self.TENTATIVES_DEMARRAGE, self.PAUSE_ENTRE_TENTATIVES)
+                time.sleep(self.PAUSE_ENTRE_TENTATIVES)
 
     @contextmanager
     def _get_connection(self):

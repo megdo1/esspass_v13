@@ -107,3 +107,123 @@ def test_mes_demandes_utilisateur_inconnu(stats_dm):
 
 def test_dashboard_stats_cles(stats_dm):
     assert set(stats_dm.get_dashboard_stats()) == {"recentes", "non_affectees", "a_etudier", "mes_demandes"}
+
+
+# --------------------------------------------------------------------- tuile « non affectées » = tableau filtré sur « responsable vide »
+def test_non_affectees_exclut_archivees_et_annulees(stats_dm):
+    _demande(stats_dm, "À étudier", "2025-01-02")                     # sans responsable : comptée
+    _demande(stats_dm, "En cours de traitement", "2025-01-03")        # comptée
+    _demande(stats_dm, "Traitée", "2025-01-04", "2025-01-05")         # comptée (affichée par défaut)
+    _demande(stats_dm, "Hors assistance", "2025-01-06")               # comptée (affichée par défaut)
+    _demande(stats_dm, "Archivée", "2025-01-07")                      # masquée par défaut : exclue
+    _demande(stats_dm, "Annulée", "2025-01-08")                       # masquée par défaut : exclue
+    _demande(stats_dm, "À étudier", "2025-01-09", responsable=1)      # affectée : exclue
+    assert stats_dm.get_demandes_non_affectees() == 4
+
+
+def test_non_affectees_compte_une_demande_sans_etat(stats_dm):
+    stats_dm.update_strict("INSERT INTO demandes (id_etat, date_reception) VALUES (NULL, '2025-01-02')")
+    assert stats_dm.get_demandes_non_affectees() == 1
+
+
+def test_non_affectees_coherent_avec_le_tableau_par_defaut(stats_dm):
+    """La tuile doit égaler le nombre de lignes sans responsable du tableau avec ses filtres par défaut."""
+    _demande(stats_dm, "À étudier", "2025-01-02")
+    _demande(stats_dm, "Traitée", "2025-01-03", "2025-01-04")
+    _demande(stats_dm, "Archivée", "2025-01-05")
+    _demande(stats_dm, "Annulée", "2025-01-06")
+    _demande(stats_dm, "En cours de traitement", "2025-01-07", responsable=1)
+    tableau = stats_dm.get_demandes(limit=1000, inclure_archivees=False, inclure_annulees=False,
+                                    inclure_realisees=True)
+    sans_responsable = [d for d in tableau if not d["responsable"]]
+    assert stats_dm.get_demandes_non_affectees() == len(sans_responsable) == 2
+
+
+def test_non_affectees_en_erreur_renvoie_zero(stats_dm):
+    stats_dm.update_strict("DROP TABLE etats")
+    assert stats_dm.get_demandes_non_affectees() == 0
+
+
+# --------------------------------------------------------------------- affichage du responsable (demandes 1495/1496 du client)
+def _utilisateur(dm, nom, prenom, email=None, actif=1):
+    dm.update_strict("INSERT INTO utilisateurs (nom, prenom, email, id_role, actif) VALUES (?, ?, ?, 1, ?)",
+                     (nom, prenom, email, actif))
+    return dm.query_strict("SELECT MAX(id_utilisateur) FROM utilisateurs")[0][0]
+
+
+def _responsables_affiches(dm):
+    return {d["id_demande"]: d["responsable"] for d in dm.get_demandes(limit=1000, inclure_archivees=True,
+                                                                         inclure_annulees=True)}
+
+
+def test_responsable_sans_nom_ni_prenom_n_est_pas_affiche_comme_non_affecte(stats_dm):
+    """Cas client : demande affectée à un utilisateur dont nom et prénom sont vides."""
+    sans_nom = _utilisateur(stats_dm, None, None)
+    _demande(stats_dm, "Traitée", "2025-01-02", "2025-01-03", responsable=sans_nom)
+    affiche = list(_responsables_affiches(stats_dm).values())[0]
+    assert affiche == f"(utilisateur #{sans_nom} sans nom)"      # visible, et non vide
+
+
+def test_responsable_prenom_manquant_affiche_le_nom(stats_dm):
+    u = _utilisateur(stats_dm, "Dupont", None)
+    _demande(stats_dm, "À étudier", "2025-01-02", responsable=u)
+    assert list(_responsables_affiches(stats_dm).values())[0] == "Dupont"
+
+
+def test_responsable_sans_nom_affiche_l_email(stats_dm):
+    u = _utilisateur(stats_dm, None, None, email="x@y.fr")
+    _demande(stats_dm, "À étudier", "2025-01-02", responsable=u)
+    assert list(_responsables_affiches(stats_dm).values())[0] == "x@y.fr"
+
+
+def test_responsable_supprime_est_signale(stats_dm):
+    _demande(stats_dm, "À étudier", "2025-01-02", responsable=999)
+    assert list(_responsables_affiches(stats_dm).values())[0] == "(utilisateur #999 introuvable)"
+
+
+def test_vide_uniquement_quand_aucun_responsable(stats_dm):
+    u = _utilisateur(stats_dm, "Martin", "Léa")
+    _demande(stats_dm, "À étudier", "2025-01-02")                           # aucun responsable
+    _demande(stats_dm, "À étudier", "2025-01-03", responsable=u)
+    _demande(stats_dm, "À étudier", "2025-01-04", responsable=_utilisateur(stats_dm, None, None))
+    _demande(stats_dm, "À étudier", "2025-01-05", responsable=999)
+    affiches = _responsables_affiches(stats_dm)
+    vides = [i for i, r in affiches.items() if not r]
+    assert len(vides) == 1                                                  # = ce que compte la tuile
+    assert stats_dm.get_demandes_non_affectees() == len(vides)
+
+
+def test_detail_demande_et_export_utilisent_le_meme_libelle(stats_dm):
+    u = _utilisateur(stats_dm, None, None)
+    _demande(stats_dm, "Traitée", "2025-01-02", "2025-01-03", responsable=u)
+    id_d = stats_dm.query_strict("SELECT id_demande FROM demandes")[0][0]
+    attendu = f"(utilisateur #{u} sans nom)"
+    assert stats_dm.get_demande_by_id(id_d)["responsable"] == attendu
+    assert stats_dm.get_demandes_by_ids([id_d])[0]["nom_responsable"] == attendu
+
+
+def test_liste_des_utilisateurs_ne_contient_jamais_none(stats_dm):
+    _utilisateur(stats_dm, None, None)
+    _utilisateur(stats_dm, "Dupont", None)
+    stats_dm.reload_reference_data()
+    assert None not in stats_dm.liste_valeurs["utilisateurs"]
+    assert "Dupont" in stats_dm.liste_valeurs["utilisateurs"]
+
+
+def _collecte(dm, id_lanceur, date="2025-01-02 10:00:00"):
+    dm.update_strict("INSERT INTO metadonnees_collecte (id_utilisateur_lanceur, date_collecte) VALUES (?, ?)",
+                     (id_lanceur, date))
+
+
+def test_dernier_lanceur_de_collecte_sans_nom_est_lisible(stats_dm):
+    u = _utilisateur(stats_dm, None, None)
+    _collecte(stats_dm, u)
+    assert stats_dm.get_last_collecte()["lanceur"] == f"(utilisateur #{u} sans nom)"
+
+
+def test_dernier_lanceur_de_collecte_nominal_et_automatique(stats_dm):
+    u = _utilisateur(stats_dm, "Martin", "Léa")
+    _collecte(stats_dm, u)
+    assert stats_dm.get_last_collecte()["lanceur"] == "Martin Léa"
+    _collecte(stats_dm, None, "2025-01-03 10:00:00")            # aucune personne : collecte automatique
+    assert stats_dm.get_last_collecte()["lanceur"] == "Automatique"

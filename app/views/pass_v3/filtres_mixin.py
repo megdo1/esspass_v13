@@ -112,7 +112,7 @@ class FiltresMixin:
                         checkbox.setChecked(selectall)
                         checkbox.blockSignals(False)
 
-            self.updateselectioncount()
+            self.update_selection_count()
             return
 
         # Pour les autres colonnes : afficher le menu contextuel

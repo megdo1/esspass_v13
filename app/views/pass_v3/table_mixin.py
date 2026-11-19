@@ -35,6 +35,12 @@ class TableMixin:
     def load_demandes_table(self, ids_tri=None):
         """Charge les demandes - AVEC SAUVEGARDE DES ÉTATS"""
 
+        # Les tuiles de statistiques suivent toujours le tableau : sans cela, modifier ou affecter une
+        # demande laissait « Demandes non affectées » périmé jusqu'au prochain démarrage.
+        if getattr(self, 'kpi_value_labels', None):
+            self.dashboard_stats = self.data_manager.get_dashboard_stats()
+            self.update_dashboard()
+
         # ===== SAUVEGARDER L'ÉTAT AVANT RECHARGEMENT =====
         ids_coches = set()
         for row in range(self.table.rowCount()):

@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 import logging
 
 from app.data.errors import DatabaseError
+from app.data.sql_utils import sql_nom_utilisateur_ou_repere
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,8 @@ class ReferentielsMixin:
                     self.sous_categories_ids_by_categorie.setdefault(libelle_cat, {})[libelle_sc] = id_sc
 
             # Utilisateurs
-            query_users = "SELECT id_utilisateur, nom || ' ' || prenom FROM utilisateurs WHERE actif = 1"
+            query_users = (f"SELECT u.id_utilisateur, {sql_nom_utilisateur_ou_repere('u', 'u.id_utilisateur')} "
+                           "FROM utilisateurs u WHERE u.actif = 1")
             results_users = self.query_strict(query_users)
 
             if results_users:

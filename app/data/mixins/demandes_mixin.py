@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 import logging
 
 from app.data.errors import ConflitModificationError
+from app.data.sql_utils import sql_responsable, sql_responsable_sous_requete
 
 logger = logging.getLogger(__name__)
 
@@ -243,7 +244,7 @@ class DemandesMixin:
                 d.id_demande, d.libelle, d.sujet, d.resume, d.demandeur,
                 d.date_reception, c.libelle_canal as canal,
                 dom.libelle_domaine as domaine,
-                COALESCE(u.nom || ' ' || u.prenom, '') as responsable,
+                {sql_responsable('d.id_responsable', 'u')} as responsable,
                 cat.libelle_categorie as categorie,
                 sc.libelle_sous_categorie as sous_categorie,
                 n.libelle_nature as nature,
@@ -313,7 +314,7 @@ class DemandesMixin:
                 strftime('%d/%m/%Y',date_reception) date_reception,
                 (SELECT libelle_canal FROM canaux c where c.id_canal=d.id_canal) libelle_canal,
                 (select libelle_domaine from domaines e where e.id_domaine=d.id_domaine) libelle_domaine,
-                (select u.nom ||' '||u.prenom FROM utilisateurs u where u.id_utilisateur=d.id_responsable) nom_responsable,
+                {sql_responsable_sous_requete('d.id_responsable')} nom_responsable,
                 (SELECT libelle_categorie FROM categories c WHERE c.id_categorie=d.id_categorie) libelle_categorie,
                 (SELECT libelle_sous_categorie FROM sous_categories c WHERE c.id_sous_categorie=d.id_sous_categorie) libelle_sous_categorie,
                 (SELECT libelle_nature FROM natures n WHERE n.id_nature=d.id_nature) libelle_nature,
@@ -371,7 +372,7 @@ class DemandesMixin:
 
     def get_demande_by_id(self, id_demande: int) -> Optional[Dict]:
         """Récupère une demande complète par son ID"""
-        query = """
+        query = f"""
             SELECT 
                 d.id_demande, d.libelle, d.sujet, d.resume, d.demandeur,
                 d.date_reception, d.id_canal, d.id_domaine, d.id_responsable,
@@ -384,7 +385,7 @@ class DemandesMixin:
                 cat.libelle_categorie, sc.libelle_sous_categorie,
                 n.libelle_nature, i.libelle_impact, u.libelle_urgence,
                 e.libelle_etat,
-                COALESCE(usr.nom || ' ' || usr.prenom, '') as responsable,
+                {sql_responsable('d.id_responsable', 'usr')} as responsable,
                 d.conversation_id
             FROM demandes d
             LEFT JOIN canaux c ON d.id_canal = c.id_canal

@@ -39,7 +39,8 @@ def _creer_schema(conn):
         created_at TEXT, updated_at TEXT)""")
     conn.execute("CREATE TABLE pieces_jointes (id_piece INTEGER PRIMARY KEY, id_demande INTEGER)")
     conn.execute("""CREATE TABLE metadonnees_collecte (id_collecte INTEGER PRIMARY KEY,
-                    id_utilisateur_lanceur INTEGER, date_collecte TEXT)""")
+                    id_utilisateur_lanceur INTEGER, date_collecte TEXT,
+                    nb_nouvelles_demandes INTEGER, nb_total_demandes INTEGER)""")
     conn.execute("""CREATE TABLE colonnes_config (nom_colonne TEXT, libelle_affiche TEXT, champ_demande TEXT,
                     largeur_defaut INTEGER, visible INTEGER, ordre_affichage INTEGER, alignement TEXT,
                     tronquer_longueur INTEGER, type_colonne TEXT, id_utilisateur INTEGER)""")

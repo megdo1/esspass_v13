@@ -244,3 +244,38 @@ def test_echec_de_lecture_du_role_n_est_pas_mis_en_cache(dm):
     assert dm.update_demande(id_d, {"resume": "x"}) is False
     dm.get_current_user = lambda: {"role": "Membre MCO", "id": 1}       # Outlook de retour
     assert dm.update_demande(id_d, {"resume": "x"}) is True
+
+
+# --------------------------------------------------------------------- reprises au démarrage (base momentanément verrouillée)
+def _dm_avec_echecs(db_path, monkeypatch, nb_echecs):
+    from app.data import data_manager as dm_module
+    monkeypatch.setattr(dm_module, "loadConfig", lambda *a, **k: {"sqlite_path": db_path})
+    monkeypatch.setattr(dm_module.DataManager, "PAUSE_ENTRE_TENTATIVES", 0)
+    reel = dm_module.DataManager._load_reference_data
+    etat = {"restants": nb_echecs, "appels": 0}
+
+    def chargement(self):
+        etat["appels"] += 1
+        if etat["restants"] > 0:
+            etat["restants"] -= 1
+            # échec PARTIEL : une liste est déjà remplie quand l'erreur survient
+            self.liste_valeurs["canaux"] = ["reste-d-un-echec"]
+            raise DatabaseError("database is locked")
+        return reel(self)
+
+    monkeypatch.setattr(dm_module.DataManager, "_load_reference_data", chargement)
+    return dm_module.DataManager, etat
+
+
+def test_demarrage_reussit_apres_un_verrou_passager(db_path, monkeypatch):
+    classe, etat = _dm_avec_echecs(db_path, monkeypatch, nb_echecs=2)
+    manager = classe()
+    assert etat["appels"] == 3
+    assert manager.liste_valeurs["canaux"] == ["A", "B"]      # pas de reste de la tentative échouée
+
+
+def test_demarrage_echoue_apres_trois_verrous(db_path, monkeypatch):
+    classe, etat = _dm_avec_echecs(db_path, monkeypatch, nb_echecs=3)
+    with pytest.raises(DatabaseError):
+        classe()
+    assert etat["appels"] == 3
