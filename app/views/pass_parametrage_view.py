@@ -11,6 +11,7 @@ from app.data.data_config import loadConfig
 
 from app.data.data_config import CONFIG_FILE
 from app.utils.auth import has_permission
+from app.views.collectes_tab import CollectesTab
 from app.views.referentiels_tab import ReferentielsTab
 
 import logging
@@ -89,11 +90,17 @@ class ParametrageDialog(QDialog):
 
         # Onglet 3 : Référentiels (listes de valeurs) - réservé au droit "Gérer les listes de valeurs"
         self.tab_referentiels = None
+        self.tab_collectes = None
         if self.data_manager:
             role = (self.data_manager.get_current_user() or {}).get('role')
             if has_permission(role, 'gerer_listes'):
                 self.tab_referentiels = ReferentielsTab(self.data_manager)
                 self.tabs.addTab(self.tab_referentiels, "🗂️ Référentiels")
+            # Onglet 4 : Collectes (suppression des collectes ratées, rattrapage) - Administrateur
+            if has_permission(role, 'gerer_collectes'):
+                self.tab_collectes = CollectesTab(self.data_manager)
+                self.tabs.addTab(self.tab_collectes, "🧹 Collectes")
+            if self.tab_referentiels is not None or self.tab_collectes is not None:
                 self.tabs.currentChanged.connect(self.on_tab_changed)
         
         main_layout.addWidget(self.tabs)
@@ -117,8 +124,8 @@ class ParametrageDialog(QDialog):
         main_layout.addLayout(btn_layout)
 
     def on_tab_changed(self, index):
-        """L'onglet Référentiels enregistre immédiatement : on masque Enregistrer/Annuler pendant son affichage."""
-        visible = self.tabs.widget(index) is not self.tab_referentiels
+        """Les onglets Référentiels et Collectes agissent immédiatement : on masque Enregistrer/Annuler."""
+        visible = self.tabs.widget(index) not in (self.tab_referentiels, self.tab_collectes)
         self.btn_save.setVisible(visible)
         self.btn_cancel.setVisible(visible)
 

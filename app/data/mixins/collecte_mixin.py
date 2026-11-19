@@ -522,6 +522,80 @@ class CollecteMixin:
             logger.error(f"❌ Erreur mise à jour statistiques collecte : {e}")
             return False
 
+    # ------------------------------------------------------------------ administration des collectes
+    MAX_COLLECTES_PAR_SUPPRESSION = 500
+
+    def get_collectes_pour_admin(self, limit: int = 300) -> List[Dict]:
+        """Liste les collectes (les plus récentes d'abord) avec leurs statistiques, pour l'onglet d'administration.
+
+        Réservé à l'Administrateur. `nb_liees` = demandes rattachées à la collecte (table collecte_demandes) ;
+        une collecte « sans demande créée » a nb_nouvelles = 0 et nb_liees = 0.
+        """
+        if self._refuser_si_pas_droit('gerer_collectes', "consulter les collectes"):
+            return []
+        query = f"""
+            SELECT mc.id_collecte,
+                   mc.date_collecte,
+                   COALESCE({sql_nom_utilisateur_ou_repere('u', 'mc.id_utilisateur_lanceur')}, 'Automatique'),
+                   COALESCE(mc.nb_emails_traites, 0),
+                   COALESCE(mc.nb_nouvelles_demandes, 0),
+                   (SELECT COUNT(*) FROM collecte_demandes cd WHERE cd.id_collecte = mc.id_collecte),
+                   mc.nb_total_demandes
+            FROM metadonnees_collecte mc
+            LEFT JOIN utilisateurs u ON u.id_utilisateur = mc.id_utilisateur_lanceur
+            ORDER BY mc.date_collecte DESC, mc.id_collecte DESC
+            LIMIT ?
+        """
+        rows = self._execute_query(query, (int(limit),))
+        if rows is None:
+            return []
+        return [
+            {'id_collecte': r[0], 'date_collecte': r[1], 'lanceur': r[2], 'nb_emails_traites': r[3],
+             'nb_nouvelles': r[4], 'nb_liees': r[5], 'nb_total': r[6]}
+            for r in rows
+        ]
+
+    def supprimer_collectes(self, ids_collectes) -> Dict:
+        """Supprime les MÉTADONNÉES de collectes : lignes de metadonnees_collecte et de collecte_demandes.
+
+        Ne touche JAMAIS aux demandes, ni à leurs mails ou pièces jointes. Sert au rattrapage : la prochaine
+        collecte repart de la date de la dernière collecte restante ; les mails déjà importés sont reconnus
+        (identifiants de message, conversation, clé de fil) et ne sont pas dupliqués.
+        Réservé à l'Administrateur ; les deux suppressions se font dans une seule transaction.
+
+        Retourne {'ok', 'collectes', 'liens', 'message'}.
+        """
+        echec = lambda msg: {'ok': False, 'collectes': 0, 'liens': 0, 'message': msg}
+        if self._refuser_si_pas_droit('gerer_collectes', "supprimer des collectes"):
+            return echec(self.last_error)
+        try:
+            ids = sorted({int(i) for i in ids_collectes})
+        except (TypeError, ValueError):
+            return echec("Identifiants de collecte invalides.")
+        if not ids:
+            return echec("Aucune collecte sélectionnée.")
+        if len(ids) > self.MAX_COLLECTES_PAR_SUPPRESSION:
+            return echec(f"Sélection trop large (maximum {self.MAX_COLLECTES_PAR_SUPPRESSION} collectes à la fois).")
+
+        marques = ",".join("?" for _ in ids)
+        try:
+            with self._get_connection() as (conn, cursor):
+                cursor.execute("BEGIN TRANSACTION")
+                cursor.execute(f"DELETE FROM collecte_demandes WHERE id_collecte IN ({marques})", ids)
+                liens = cursor.rowcount
+                cursor.execute(f"DELETE FROM metadonnees_collecte WHERE id_collecte IN ({marques})", ids)
+                collectes = cursor.rowcount
+                conn.commit()
+            self.last_error = None
+        except Exception as e:
+            self._record_error("DELETE", "suppression de collectes", e)
+            return echec(f"Suppression impossible : {e}")
+
+        logger.warning("Collectes supprimées (métadonnées seulement) : %s (%d collectes, %d liens)",
+                       ids, collectes, liens)
+        return {'ok': True, 'collectes': collectes, 'liens': liens,
+                'message': f"{collectes} collecte(s) et {liens} lien(s) demande-collecte supprimés."}
+
     def supprimer_collecte(self, id_collecte: int) -> bool:
         """
         Supprime définitivement un utilisateur

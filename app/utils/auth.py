@@ -66,6 +66,7 @@ PERMISSIONS = {
         'mettre_a_jour': False,
         'gerer_listes': False,
         'gerer_utilisateurs': False,
+        'gerer_collectes': False,
     },
     'Membre MCO': {
         'creer_demande': True,
@@ -80,6 +81,7 @@ PERMISSIONS = {
         'mettre_a_jour': True,
         'gerer_listes': False,
         'gerer_utilisateurs': False,
+        'gerer_collectes': False,
     },
     'Administrateur': {
         'creer_demande': True,
@@ -94,6 +96,7 @@ PERMISSIONS = {
         'mettre_a_jour': True,
         'gerer_listes': True,
         'gerer_utilisateurs': True,
+        'gerer_collectes': True,
     },
 }
 
