@@ -6,7 +6,6 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 import app.logic.logic_extract_mails_unread as sync_outlook
 from typing import List
-from app.data.data_config import loadConfig
 from app.utils.decorators import busy_cursor, busy_cursor_no_args
 from app.utils.ui_helpers import show_info, show_error
 import logging
@@ -60,17 +59,20 @@ class TableMixin:
         inclure_annulees = self.cb_annulees.isChecked()
         inclure_realisees = self.cb_realisees.isChecked()
 
-        conf = loadConfig()
-        limitDemandes = conf.get("demande_limit", "1000")
+        # La limite se règle dans Configuration > Général (enregistrée en base, pas dans config.json)
+        limitDemandes = self.data_manager.get_limite_demandes()
+        self.limite_chargement = limitDemandes
 
         # Charger avec filtres
         erreurs_avant = self.data_manager.error_count
         demandes = self.data_manager.get_demandes(
-            limit=int(limitDemandes),
+            limit=limitDemandes,
             inclure_archivees=inclure_archivees,
             inclure_annulees=inclure_annulees,
             inclure_realisees=inclure_realisees
         )
+
+        self.nb_demandes_chargees = len(demandes or [])
 
         if not demandes and self.data_manager.error_count > erreurs_avant:
             # Erreur d'accès base (et non « aucun résultat ») : on garde le tableau affiché tel quel

@@ -3,6 +3,7 @@
 from PyQt5.QtWidgets import QWidget, QFrame
 from PyQt5.QtWidgets import QTableWidget, QCheckBox, QVBoxLayout, QHBoxLayout, QPushButton, QLabel
 from PyQt5.QtCore import Qt
+from app.utils.affichage import avertissement_limite
 
 
 class LayoutMixin:
@@ -368,6 +369,8 @@ class LayoutMixin:
             filtres_text = " (tous les états affichés)"
 
         info_text = f"Affichage de {nb_affiches} demandes sur {total} au total{filtres_text}"
+        info_text += avertissement_limite(getattr(self, 'nb_demandes_chargees', 0),
+                                          getattr(self, 'limite_chargement', 0))
         self.info_label.setText(info_text)
 
     def create_actions_widget(self, row_idx):

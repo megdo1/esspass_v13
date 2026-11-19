@@ -206,7 +206,7 @@ class ConfigMixin:
                                 SELECT valeur, type_valeur FROM parametres_app WHERE cle = ? 
                             """, (cle,))
             if row:
-                valeur, type_valeur = row
+                valeur, type_valeur = row[0]    # row = [(valeur, type_valeur)] : l'ancien « = row » levait ValueError
                 # Conversion selon le type
                 if type_valeur == 'int':
                     return int(valeur) if valeur else 0
@@ -219,6 +219,26 @@ class ConfigMixin:
         except Exception as e:
             logger.error(f"⚠️ Erreur lecture paramètre {cle}: {e}")
             return default
+
+    LIMITE_DEMANDES_DEFAUT = 1000
+    LIMITE_DEMANDES_MAX = 100000
+
+    def get_limite_demandes(self) -> int:
+        """Nombre maximum de demandes chargées dans le tableau (réglage « limite » de la Configuration).
+
+        Le réglage est enregistré dans la base (parametres_app) : c'est la source de vérité. Repli sur la clé
+        `demande_limit` de config.json (anciennes installations), puis 1000.
+        """
+        valeur = self.get_parametre('demande_limit')
+        if valeur in (None, '', 0):
+            valeur = (getattr(self, 'conf', None) or {}).get('demande_limit')
+        try:
+            limite = int(valeur)
+        except (TypeError, ValueError):
+            return self.LIMITE_DEMANDES_DEFAUT
+        if limite <= 0:
+            return self.LIMITE_DEMANDES_DEFAUT
+        return min(limite, self.LIMITE_DEMANDES_MAX)
 
     def get_all_parametres(self):
         """
@@ -282,6 +302,11 @@ class ConfigMixin:
             logger.exception("Erreur écriture paramètre %s", cle)
             return False
 
+    PARAMETRES_ENTIERS = {
+        'demande_limit': "Nombre maximum de demandes chargées dans le tableau",
+        'mail_days': "Profondeur de collecte des mails (en jours)",
+    }
+
     def update_parametres_bulk(self, parametres_dict):
         """
         Met à jour plusieurs paramètres en une transaction unique - VERSION OPTIMISÉE
@@ -322,6 +347,19 @@ class ConfigMixin:
 
                 # executemany : INSERT batch
                 cursor.executemany(insert_query, params_list)
+
+                # Les réglages numériques n'ont pas toujours de ligne « globale » modèle (id_utilisateur NULL) :
+                # sans elle, l'INSERT ... SELECT ci-dessus n'insère rien et la valeur saisie était perdue
+                # sans erreur (ex. la limite de demandes). On la crée alors directement.
+                for cle, description in self.PARAMETRES_ENTIERS.items():
+                    if cle in parametres_dict:
+                        cursor.execute(
+                            """
+                            INSERT INTO parametres_app (cle, valeur, description, type_valeur, id_utilisateur)
+                            SELECT ?, ?, ?, 'int', ?
+                            WHERE NOT EXISTS (SELECT 1 FROM parametres_app WHERE cle = ? AND id_utilisateur = ?)
+                            """,
+                            (cle, str(parametres_dict[cle]), description, id_user, cle, id_user))
 
                 # COMMIT
                 conn.commit()

@@ -14,9 +14,10 @@ class StatsMixin:
     ETAT_A_ETUDIER = "À étudier"
     ETAT_EN_COURS_TRAITEMENT = "En cours de traitement"
     ETATS_HORS_CALCUL = ("Archivée", "Annulée", "Hors assistance", "Non applicable")
-    # États masqués par défaut dans le tableau des demandes : une demande archivée ou annulée n'a plus
-    # à être affectée, la tuile « non affectées » ne doit donc pas les compter.
-    ETATS_MASQUES_PAR_DEFAUT = ("Archivée", "Annulée")
+    # États pour lesquels une demande n'a plus à être affectée (clôturée, traitée, archivée ou annulée) :
+    # la tuile « Demandes non affectées » ne les compte pas. Les autres états (À étudier, En cours de
+    # traitement, Hors assistance, Non applicable) restent comptés.
+    ETATS_NON_A_AFFECTER = ("Archivée", "Annulée", "Fermée", "Traitée")
 
     def get_metriques_periode(self, date_debut: str, date_fin: str) -> Optional[Dict]:
         """
@@ -96,12 +97,12 @@ class StatsMixin:
         return 0
 
     def get_demandes_non_affectees(self) -> int:
-        """Compte les demandes sans responsable, hors états masqués par défaut (Archivée, Annulée).
+        """Compte les demandes sans responsable qui restent à affecter.
 
-        Même périmètre que le tableau des demandes avec ses filtres par défaut, pour que la tuile et
-        le tableau filtré sur « responsable vide » donnent le même nombre.
+        Exclut les demandes Archivée, Annulée, Fermée et Traitée (plus rien à affecter). Pour retrouver ce
+        nombre dans le tableau, filtrer « responsable vide » en écartant aussi ces états.
         """
-        masques = ", ".join("?" for _ in self.ETATS_MASQUES_PAR_DEFAUT)
+        masques = ", ".join("?" for _ in self.ETATS_NON_A_AFFECTER)
         query = f"""
             SELECT COUNT(*)
             FROM demandes d
@@ -109,7 +110,7 @@ class StatsMixin:
             WHERE d.id_responsable IS NULL
               AND COALESCE(e.libelle_etat, '') NOT IN ({masques})
         """
-        results = self._execute_query(query, self.ETATS_MASQUES_PAR_DEFAUT)
+        results = self._execute_query(query, self.ETATS_NON_A_AFFECTER)
 
         if results and len(results) > 0:
             return results[0][0]

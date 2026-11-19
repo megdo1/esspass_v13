@@ -279,3 +279,36 @@ def test_demarrage_echoue_apres_trois_verrous(db_path, monkeypatch):
     with pytest.raises(DatabaseError):
         classe()
     assert etat["appels"] == 3
+
+
+# --------------------------------------------------------------------- liste des responsables proposés (get_all_users)
+def _utilisateur_complet(dm, nom, prenom, id_role=2, actif=1, windows_login=None):
+    dm.update_strict("INSERT INTO utilisateurs (nom, prenom, email, id_role, actif, windows_login) "
+                     "VALUES (?, ?, ?, ?, ?, ?)", (nom, prenom, f"{nom}@x.fr".lower(), id_role, actif, windows_login))
+
+
+def test_responsables_proposes_exclut_les_comptes_avec_windows_login(dm):
+    _utilisateur_complet(dm, "Martin", "Léa")
+    _utilisateur_complet(dm, "Robot", "Technique", windows_login="svc_robot")
+    noms = [u["nom"] for u in dm.get_all_users()]
+    assert "Martin" in noms and "Robot" not in noms
+
+
+def test_responsables_proposes_actifs_seulement_et_tries(dm):
+    _utilisateur_complet(dm, "Zola", "Émile")
+    _utilisateur_complet(dm, "Arnaud", "Paul")
+    _utilisateur_complet(dm, "Inactif", "Jean", actif=0)
+    noms = [u["nom"] for u in dm.get_all_users()]
+    assert "Inactif" not in noms
+    assert noms == sorted(noms)                                     # ordre nom, prénom
+
+
+def test_responsables_proposes_contient_le_role_et_l_identifiant(dm):
+    _utilisateur_complet(dm, "Martin", "Léa", id_role=3)
+    martin = next(u for u in dm.get_all_users() if u["nom"] == "Martin")
+    assert martin["role"] == "Administrateur" and martin["nom_complet"] == "Martin Léa" and martin["id"] > 0
+
+
+def test_responsables_proposes_sans_utilisateur_eligible(dm):
+    dm.update_strict("UPDATE utilisateurs SET windows_login = 'x'")
+    assert dm.get_all_users() == []

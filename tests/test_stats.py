@@ -110,14 +110,17 @@ def test_dashboard_stats_cles(stats_dm):
 
 
 # --------------------------------------------------------------------- tuile « non affectées » = tableau filtré sur « responsable vide »
-def test_non_affectees_exclut_archivees_et_annulees(stats_dm):
-    _demande(stats_dm, "À étudier", "2025-01-02")                     # sans responsable : comptée
-    _demande(stats_dm, "En cours de traitement", "2025-01-03")        # comptée
-    _demande(stats_dm, "Traitée", "2025-01-04", "2025-01-05")         # comptée (affichée par défaut)
-    _demande(stats_dm, "Hors assistance", "2025-01-06")               # comptée (affichée par défaut)
-    _demande(stats_dm, "Archivée", "2025-01-07")                      # masquée par défaut : exclue
-    _demande(stats_dm, "Annulée", "2025-01-08")                       # masquée par défaut : exclue
-    _demande(stats_dm, "À étudier", "2025-01-09", responsable=1)      # affectée : exclue
+ETATS_NON_A_AFFECTER = ("Archivée", "Annulée", "Fermée", "Traitée")
+
+
+def test_non_affectees_exclut_archivee_annulee_fermee_et_traitee(stats_dm):
+    for etat in ("À étudier", "En cours de traitement", "Hors assistance", "Non applicable"):
+        _demande(stats_dm, etat, "2025-01-02")                            # sans responsable : comptées
+    _demande(stats_dm, "Traitée", "2025-01-04", "2025-01-05")             # exclue
+    _demande(stats_dm, "Fermée", "2025-01-04", "2025-01-05")              # exclue
+    _demande(stats_dm, "Archivée", "2025-01-07")                          # exclue
+    _demande(stats_dm, "Annulée", "2025-01-08")                           # exclue
+    _demande(stats_dm, "À étudier", "2025-01-09", responsable=1)          # affectée : exclue
     assert stats_dm.get_demandes_non_affectees() == 4
 
 
@@ -126,17 +129,21 @@ def test_non_affectees_compte_une_demande_sans_etat(stats_dm):
     assert stats_dm.get_demandes_non_affectees() == 1
 
 
-def test_non_affectees_coherent_avec_le_tableau_par_defaut(stats_dm):
-    """La tuile doit égaler le nombre de lignes sans responsable du tableau avec ses filtres par défaut."""
-    _demande(stats_dm, "À étudier", "2025-01-02")
-    _demande(stats_dm, "Traitée", "2025-01-03", "2025-01-04")
-    _demande(stats_dm, "Archivée", "2025-01-05")
-    _demande(stats_dm, "Annulée", "2025-01-06")
+def test_non_affectees_correspond_au_tableau_hors_etats_non_a_affecter(stats_dm):
+    """La tuile = lignes sans responsable du tableau, une fois écartés les états qui n'ont plus à être affectés."""
+    for etat in ("À étudier", "À étudier", "En cours de traitement", "Hors assistance"):
+        _demande(stats_dm, etat, "2025-01-02")
+    for etat in ("Traitée", "Fermée", "Archivée", "Annulée"):
+        _demande(stats_dm, etat, "2025-01-03", "2025-01-04")
     _demande(stats_dm, "En cours de traitement", "2025-01-07", responsable=1)
-    tableau = stats_dm.get_demandes(limit=1000, inclure_archivees=False, inclure_annulees=False,
+    tableau = stats_dm.get_demandes(limit=1000, inclure_archivees=True, inclure_annulees=True,
                                     inclure_realisees=True)
-    sans_responsable = [d for d in tableau if not d["responsable"]]
-    assert stats_dm.get_demandes_non_affectees() == len(sans_responsable) == 2
+    a_affecter = [d for d in tableau if not d["responsable"] and d["etat"] not in ETATS_NON_A_AFFECTER]
+    assert stats_dm.get_demandes_non_affectees() == len(a_affecter) == 4
+
+
+def test_non_affectees_les_etats_exclus_sont_ceux_demandes(stats_dm):
+    assert set(stats_dm.ETATS_NON_A_AFFECTER) == set(ETATS_NON_A_AFFECTER)
 
 
 def test_non_affectees_en_erreur_renvoie_zero(stats_dm):

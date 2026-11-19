@@ -221,12 +221,16 @@ class UsersMixin:
             return None
 
     def get_all_users(self) -> List[Dict]:
-        """Récupère tous les utilisateurs actifs"""
+        """Récupère les utilisateurs actifs proposés comme responsables (listes des dialogues de demandes).
+
+        Seuls les comptes sans windows_login (colonne `windows_login` IS NULL) sont retournés.
+        """
         query = """
             SELECT u.id_utilisateur, u.nom, u.prenom, r.libelle_role
             FROM utilisateurs u
             JOIN roles r ON u.id_role = r.id_role
             WHERE u.actif = 1
+              AND u.windows_login IS NULL
             ORDER BY u.nom, u.prenom
         """
 
