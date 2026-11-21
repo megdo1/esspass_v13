@@ -94,3 +94,27 @@ def donnees_date_traitement(libelle_etat: str, texte_date: str, maintenant: Opti
     if libelle_etat in ETATS_SANS_DATE:
         return {'date_traitement': ''}, None
     return {}, None
+
+
+# Colonne du tableau (`champ_demande`) -> clé de `get_demande_by_id` : permet de rafraîchir une seule ligne
+CHAMP_VERS_DEMANDE = {
+    'libelle': 'libelle', 'sujet': 'sujet', 'resume': 'resume', 'demandeur': 'demandeur',
+    'date_reception': 'date_reception', 'canal': 'libelle_canal', 'domaine': 'libelle_domaine',
+    'responsable': 'responsable', 'categorie': 'libelle_categorie', 'sous_categorie': 'libelle_sous_categorie',
+    'nature': 'libelle_nature', 'impact': 'libelle_impact', 'urgence': 'libelle_urgence',
+    'priorite': 'priorite_calculee', 'solution': 'solution_suite_a_donner', 'etat': 'libelle_etat',
+    'date_traitement': 'date_traitement', 'commentaire': 'commentaire',
+}
+
+# État -> case du tableau qui doit être cochée pour que la ligne reste affichée
+ETAT_VERS_FILTRE = {'Archivée': 'cb_archives', 'Annulée': 'cb_annulees', 'Traitée': 'cb_realisees'}
+
+
+def valeur_cellule(champ: str, demande: dict, tronquer=None):
+    """Texte affiché dans la cellule pour ce champ, ou None si la colonne n'est pas rafraîchissable ainsi."""
+    cle = CHAMP_VERS_DEMANDE.get(champ)
+    if cle is None:
+        return None
+    valeur = demande.get(cle)
+    texte = "" if valeur is None else str(valeur)
+    return texte[:tronquer] if tronquer else texte

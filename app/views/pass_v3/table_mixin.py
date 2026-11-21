@@ -170,18 +170,7 @@ class TableMixin:
                     item = QTableWidgetItem(str(value))
                     item.setTextAlignment(alignement)
 
-                    # Appliquer les couleurs
-                    if value == "P1":
-                        item.setBackground(QColor("#C53030"))
-                        item.setForeground(QColor("white"))
-                    elif value == "P2":
-                        item.setBackground(QColor("#F6AD55"))
-                    elif value == "P3":
-                        item.setBackground(QColor("#FAF089"))
-                    elif value == "P4":
-                        item.setBackground(QColor("#2F855A"))
-                        item.setForeground(QColor("white"))
-
+                    self._style_cellule(item, 'priorite', value)
                     self.table.setItem(row_idx, col_idx, item)
 
                 elif type_col == 'etat':
@@ -190,13 +179,7 @@ class TableMixin:
                     item = QTableWidgetItem(str(value))
                     item.setTextAlignment(alignement)
 
-                    if value == "Traitée":
-                        item.setBackground(QColor("#E6F4EC"))
-                    elif value == "À étudier":
-                        item.setBackground(QColor("#FDF1E3"))
-                    elif "En cours" in value:
-                        item.setBackground(QColor("#E8EEF9"))
-
+                    self._style_cellule(item, 'etat', value)
                     self.table.setItem(row_idx, col_idx, item)
 
                 else:
@@ -253,6 +236,28 @@ class TableMixin:
         self.update_selection_count()
 
         return len(demandes)
+
+    @staticmethod
+    def _style_cellule(item, type_col, value):
+        """Couleurs des colonnes Priorité et État (chargement complet ET rafraîchissement d'une seule ligne)."""
+        if type_col == 'priorite':
+            if value == "P1":
+                item.setBackground(QColor("#C53030"))
+                item.setForeground(QColor("white"))
+            elif value == "P2":
+                item.setBackground(QColor("#F6AD55"))
+            elif value == "P3":
+                item.setBackground(QColor("#FAF089"))
+            elif value == "P4":
+                item.setBackground(QColor("#2F855A"))
+                item.setForeground(QColor("white"))
+        elif type_col == 'etat':
+            if value == "Traitée":
+                item.setBackground(QColor("#E6F4EC"))
+            elif value == "À étudier":
+                item.setBackground(QColor("#FDF1E3"))
+            elif "En cours" in value:
+                item.setBackground(QColor("#E8EEF9"))
 
     def get_selected_demandes(self) -> List[int]:
         """Récupère les IDs des demandes sélectionnées via checkbox"""

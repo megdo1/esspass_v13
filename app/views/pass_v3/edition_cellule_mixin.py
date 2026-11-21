@@ -46,9 +46,9 @@ class EditionCelluleMixin:
         if not modifiable:
             QToolTip.showText(QCursor.pos(), raison, self.table)
             return
-        self.modifier_champ_cellule(row, col)
+        self.modifier_champ_cellule(row, col, demande)
 
-    def modifier_champ_cellule(self, row, col):
+    def modifier_champ_cellule(self, row, col, demande=None):
         # Import local : le dialogue n'est utile qu'au moment de la modification
         from app.views.pass_v3.edition_champ_dialog import EditionChampDialog
 
@@ -57,7 +57,8 @@ class EditionCelluleMixin:
         config = self.colonnes_tableau[col]
         champ = config['champ']
         id_demande = int(self.table.verticalHeaderItem(row).text())
-        demande = self.data_manager.get_demande_by_id(id_demande)
+        if demande is None:     # déjà lue par le double-clic : pas de seconde lecture sur le réseau
+            demande = self.data_manager.get_demande_by_id(id_demande)
         if not demande:
             show_error(self, "Demande introuvable", f"La demande #{id_demande} n'existe plus. Actualisez le tableau.")
             return
@@ -70,9 +71,9 @@ class EditionCelluleMixin:
         dialog = EditionChampDialog(champ, config['libelle'], demande, self.data_manager, role, self)
         if dialog.exec_() != QDialog.Accepted or not dialog.donnees:
             return
-        self._enregistrer_champ(id_demande, dialog.donnees, demande.get('updated_at'))
+        self._enregistrer_champ(id_demande, dialog.donnees, demande.get('updated_at'), row)
 
-    def _enregistrer_champ(self, id_demande, donnees, version):
+    def _enregistrer_champ(self, id_demande, donnees, version, row=None):
         try:
             ok = self.data_manager.update_demande(id_demande, donnees, expected_updated_at=version)
         except ConflitModificationError as e:
@@ -86,7 +87,40 @@ class EditionCelluleMixin:
                        "La modification n'a pas été enregistrée.\n\n" + (self.data_manager.last_error or ""))
             return False
         logger.info("Demande #%s modifiée depuis le tableau : %s", id_demande, ", ".join(sorted(donnees)))
-        self._recharger_tableau_en_place()
+        if not self._rafraichir_ligne(row, id_demande):
+            self._recharger_tableau_en_place()
+        return True
+
+    def _rafraichir_ligne(self, row, id_demande):
+        """Met à jour la seule ligne modifiée (1 lecture) au lieu de recharger tout le tableau.
+
+        Retourne False (=> rechargement complet) si la ligne n'est plus à sa place : état qui la fait sortir
+        de la liste affichée, ligne introuvable, ou cellule inattendue.
+        """
+        entete = self.table.verticalHeaderItem(row) if row is not None else None
+        if entete is None or entete.text() != str(id_demande):
+            return False
+        demande = self.data_manager.get_demande_by_id(id_demande)
+        if not demande:
+            return False
+        case = regles.ETAT_VERS_FILTRE.get(demande.get('libelle_etat'))
+        if case and not getattr(self, case).isChecked():
+            return False          # la ligne sort de la liste affichée : la recharger
+        for col, config in enumerate(self.colonnes_tableau):
+            if config['type'] in regles.TYPES_COLONNE_SANS_EDITION:
+                continue
+            texte = regles.valeur_cellule(config['champ'], demande, config.get('tronquer'))
+            if texte is None:
+                continue
+            item = self.table.item(row, col)
+            if item is None:
+                return False
+            if item.text() != texte:
+                item.setText(texte)
+            self._style_cellule(item, config['type'], texte)
+        if hasattr(self, 'mots_cles') and any(self.mots_cles.values()):
+            self.filtrerDonnees()
+            self.majHeaderIndicateurs()
         return True
 
     def _recharger_tableau_en_place(self):
