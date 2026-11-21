@@ -307,8 +307,8 @@ class LayoutMixin:
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         # (optionnel) empêcher l’utilisateur d’insérer/supprimer des lignes via le clavier
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        # Double-clic sur une ligne : ouvre le détail de la demande
-        self.table.cellDoubleClicked.connect(self.on_demande_double_clic)
+        # Double-clic sur une cellule : modifier le champ dans le tableau (mêmes champs que « Gérer »)
+        self._init_edition_cellule()
 
         self.load_demandes_table()
         layout.addWidget(self.table, 1)

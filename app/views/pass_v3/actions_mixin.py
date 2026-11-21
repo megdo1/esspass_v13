@@ -110,12 +110,6 @@ class ActionsMixin:
         except Exception as e:
             show_error(self, "Erreur", f"Impossible d'afficher les détails : {e}")
 
-    def on_demande_double_clic(self, row, column):
-        """Double-clic sur une ligne de la liste : ouvre le détail de la demande (comme le bouton 👁)."""
-        if row < 0 or self.table.verticalHeaderItem(row) is None:
-            return
-        self.voir_plus_demande(row)
-
     @busy_cursor
     def traiter_demande(self, row):
         """Ouvre le dialogue de traitement pour une demande"""

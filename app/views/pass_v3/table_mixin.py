@@ -106,6 +106,7 @@ class TableMixin:
 
         # Extraire les libellés pour le header
         colonnes_labels = [col['libelle'] for col in colonnes_config]
+        self.colonnes_tableau = colonnes_config   # lue par l'édition au double-clic
 
         self.table.setColumnCount(len(colonnes_labels))
         self.table.setHorizontalHeaderLabels(colonnes_labels)

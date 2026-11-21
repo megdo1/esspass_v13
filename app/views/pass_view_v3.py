@@ -38,9 +38,11 @@ from app.views.pass_v3.filtres_mixin import FiltresMixin
 from app.views.pass_v3.table_mixin import TableMixin
 from app.views.pass_v3.actions_mixin import ActionsMixin
 from app.views.pass_v3.export_mixin import ExportMixin
+from app.views.pass_v3.edition_cellule_mixin import EditionCelluleMixin
 
 
-class PassViewClean(PermissionsMixin, LayoutMixin, FiltresMixin, TableMixin, ActionsMixin, ExportMixin, QWidget):
+class PassViewClean(PermissionsMixin, LayoutMixin, FiltresMixin, TableMixin, ActionsMixin, ExportMixin,
+                    EditionCelluleMixin, QWidget):
     """Vue PASS - UTILISE UNIQUEMENT DataManager"""
 
     def __init__(self, parent=None):
