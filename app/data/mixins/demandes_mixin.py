@@ -267,7 +267,7 @@ class DemandesMixin:
             LEFT JOIN urgences urg ON d.id_urgence = urg.id_urgence
             LEFT JOIN etats e ON d.id_etat = e.id_etat
             {where_clause}
-            ORDER BY d.priorite_calculee, d.date_reception DESC
+            ORDER BY d.date_reception DESC, d.id_demande DESC
             LIMIT ? OFFSET ?
         """
 

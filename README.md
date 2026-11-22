@@ -2,7 +2,7 @@
 
 Application de bureau **Windows** de suivi des demandes d'assistance PIGC et des données OA/OT (SNCF Réseau).
 
-**Version : 1.3.0**
+**Version : 1.3.1**
 
 ## Fonctionnalités
 
