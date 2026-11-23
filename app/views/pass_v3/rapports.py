@@ -247,10 +247,10 @@ class RapportCOPILViewerDialog(QDialog):
                 COUNT(*) as nombre
             FROM demandes d
             LEFT JOIN natures nat ON d.id_nature = nat.id_nature
-            WHERE """ + " OR ".join([
+            WHERE (""" + " OR ".join([
                 f"(date(d.date_reception) BETWEEN '{start}' AND '{end}')"
                 for start, end in date_ranges
-            ]) + """
+            ]) + """)
             AND nat.libelle_nature in ('Anomalie','Evolution')
             GROUP BY type
         """
