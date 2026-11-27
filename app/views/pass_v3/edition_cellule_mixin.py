@@ -99,12 +99,15 @@ class EditionCelluleMixin:
         """
         entete = self.table.verticalHeaderItem(row) if row is not None else None
         if entete is None or entete.text() != str(id_demande):
+            logger.info("Rafraîchissement ligne #%s impossible : ligne %s introuvable", id_demande, row)
             return False
         demande = self.data_manager.get_demande_by_id(id_demande)
         if not demande:
+            logger.info("Rafraîchissement ligne #%s impossible : demande introuvable", id_demande)
             return False
         case = regles.ETAT_VERS_FILTRE.get(demande.get('libelle_etat'))
         if case and not getattr(self, case).isChecked():
+            logger.info("Ligne #%s : état '%s' masqué par les filtres, rechargement complet", id_demande, demande.get('libelle_etat'))
             return False          # la ligne sort de la liste affichée : la recharger
         for col, config in enumerate(self.colonnes_tableau):
             if config['type'] in regles.TYPES_COLONNE_SANS_EDITION:
@@ -114,6 +117,7 @@ class EditionCelluleMixin:
                 continue
             item = self.table.item(row, col)
             if item is None:
+                logger.info("Ligne #%s : cellule colonne %s absente, rechargement complet", id_demande, col)
                 return False
             if item.text() != texte:
                 item.setText(texte)

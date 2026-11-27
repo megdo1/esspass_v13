@@ -71,7 +71,16 @@ class ActionsMixin:
         # Recharger le tableau si la demande a été sauvegardée
         if result == QDialog.Accepted:
             logger.info(f"Demande #{id_demande} modifiée")
-            self.load_demandes_table()
+            self.rafraichir_demande_modifiee(id_demande)
+
+    def rafraichir_demande_modifiee(self, id_demande):
+        """Met à jour la seule ligne modifiée ; rechargement complet en secours
+        (ligne absente du tableau, état qui la fait sortir de la liste, etc.)."""
+        row = next((r for r in range(self.table.rowCount())
+                    if self.table.verticalHeaderItem(r) is not None
+                    and self.table.verticalHeaderItem(r).text() == str(id_demande)), None)
+        if row is None or not self._rafraichir_ligne(row, id_demande):
+            self._recharger_tableau_en_place()
 
     @busy_cursor
     def dupliquer_demande(self, row):

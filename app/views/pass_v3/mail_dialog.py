@@ -515,4 +515,4 @@ class MailDetailsDialog(QDialog):
         if result == QDialog.Accepted:
             # Rafraîchir les données affichées
             self.demande_data = self.datamanager.get_demande_by_id(id_demande)
-            self.parent.load_demandes_table()
+            self.parent.rafraichir_demande_modifiee(id_demande)

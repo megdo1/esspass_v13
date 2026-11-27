@@ -49,7 +49,7 @@ class TraitementMixin:
         ##################################################### PASS #####################################################
         if key == ("PASS", "LD Assistance PIGC", "📋 Demandes"):
             from app.views.pass_view_v3 import PassViewClean
-            return PassViewClean()
+            return PassViewClean(data_manager=getattr(self, 'dm', None))
 
         if key == ("PASS", "LD Assistance PIGC", "👥 Utilisateurs"):
             from app.views.pass_users_view import GestionUtilisateursDialog

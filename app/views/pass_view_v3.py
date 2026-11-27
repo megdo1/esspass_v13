@@ -45,14 +45,15 @@ class PassViewClean(PermissionsMixin, LayoutMixin, FiltresMixin, TableMixin, Act
                     EditionCelluleMixin, QWidget):
     """Vue PASS - UTILISE UNIQUEMENT DataManager"""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, data_manager=None):
         super().__init__(parent)
         self.setWindowTitle("ES-PASS - Gestion des demandes d'assistance PIGC")
         self.setMinimumSize(1400, 900)
         self.open_dialogs = {}  # {id_demande: dialog_instance}
 
         try:
-            self.data_manager = DataManager()  # Lèvera une exception si DB inaccessible
+            # Instance partagée de la fenêtre principale si fournie : évite un 2e chargement des listes
+            self.data_manager = data_manager or DataManager()  # Lèvera une exception si DB inaccessible
         except Exception as e:
             show_error(
                 self,
@@ -108,7 +109,7 @@ class PassViewClean(PermissionsMixin, LayoutMixin, FiltresMixin, TableMixin, Act
 
         # Charger les données initiales
         self.update_display_info()
-        self.load_demandes_table()
+        # Pas de 2e load_demandes_table() ici : init_ui() a déjà chargé le tableau
 
 
         # Si is_enabled = True, ne rien faire (garder le style exact du bouton)
